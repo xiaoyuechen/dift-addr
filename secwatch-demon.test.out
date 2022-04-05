@@ -1,0 +1,4 @@
+executed,addr_mem,addr_any,ins_addr,exhaustion,img,rtn,load_offset,from,val
+171214,1,13465,0x56429914711c,0,secwatch-demon.exe,main,0x564299146000,0x564299d832a0,0x564299149ce0
+171222,2,13466,0x56429914711c,0,secwatch-demon.exe,main,0x564299146000,0x564299d832a1,0x564299149160
+172463,1,13544,0x7f8281df9fcd,0,libc.so.6,_int_free,0x7f8281d5f000

@@ -1,0 +1,52 @@
+SHELL = /bin/bash
+
+BENCH_CMD = pin -t obj-intel64/dift-addr.so -o "$@.dump" -dumpperiod 10000 --
+BENCH_PIPE = > $@.ref.out 2> $@.ref.err
+
+selected: perlbench_checkspam bzip2_program bzip2_text;
+
+perlbench_checkspam = "$(BENCH_ROOT)/perlbench" -I"$(BENCH_ROOT)/lib" "$(BENCH_ROOT)/checkspam.pl" 2500 5 25 11 150 1 1 1 1
+perlbench_diffmail = "$(BENCH_ROOT)/perlbench" -I"$(BENCH_ROOT)/lib" "$(BENCH_ROOT)/diffmail.pl" 4 800 10 17 19 300
+perlbench_splitmail = "$(BENCH_ROOT)/perlbench" -I"$(BENCH_ROOT)/lib" "$(BENCH_ROOT)/splitmail.pl" 1600 12 26 16 4500
+bzip2_chicken = "$(BENCH_ROOT)/bzip2" "$(BENCH_ROOT)/chicken.jpg" 30
+bzip2_liberty = "$(BENCH_ROOT)/bzip2" "$(BENCH_ROOT)/liberty.jpg" 30
+bzip2_program ="$(BENCH_ROOT)/bzip2" "$(BENCH_ROOT)/input.program" 280
+bzip2_text ="$(BENCH_ROOT)/bzip2" "$(BENCH_ROOT)/text.html" 280
+bwaves = $(BENCH_ROOT)/$@
+gamess_cytosine = "$(BENCH_ROOT)/gamess" < "$(BENCH_ROOT)/cytosine.2.config"
+gamess_h2ocu2 = "$(BENCH_ROOT)/gamess" < "$(BENCH_ROOT)/h2ocu2+.gradient.config"
+gamess_triazolium = "$(BENCH_ROOT)/gamess" < "$(BENCH_ROOT)/triazolium.config"
+mcf = $(BENCH_ROOT)/$@ "$(BENCH_ROOT)/inp.in"
+milc = $(BENCH_ROOT)/$@ < "$(BENCH_ROOT)/su3imp.in"
+zeusmp = $(BENCH_ROOT)/$@
+gromacs = $(BENCH_ROOT)/gromacs -silent -deffnm gromacs -nice 0
+cactusADM = $(BENCH_ROOT)/$@ $(BENCH_ROOT)/benchADM.par
+leslie3d = $(BENCH_ROOT)/$@ < $(BENCH_ROOT)/$@.in
+named = $(BENCH_ROOT)/$@ $(BENCH_ROOT)/$@.input --iterations 38
+gobmk_13x13 = $(BENCH_ROOT)/gobmk --quiet --mode gtp < $(BENCH_ROOT)/13x13.tst
+gobmk_nngs = $(BENCH_ROOT)/gobmk --quiet --mode gtp < $(BENCH_ROOT)/nngs.tst
+gobmk_score2 = $(BENCH_ROOT)/gobmk --quiet --mode gtp < $(BENCH_ROOT)/score2.tst
+gobmk_trevorc = $(BENCH_ROOT)/gobmk --quiet --mode gtp < $(BENCH_ROOT)/trevorc.tst
+gobmk_trevord = $(BENCH_ROOT)/gobmk --quiet --mode gtp < $(BENCH_ROOT)/trevord.tst
+dealII = $(BENCH_ROOT)/$@ 23
+soplex-pds-50 = $(BENCH_ROOT)/soplex -s1 -e -m45000 $(BENCH_ROOT)/pds-50.mps
+soplex = $(BENCH_ROOT)/soplex -m3500 $(BENCH_ROOT)/ref.mps
+povray = $(BENCH_ROOT)/ppovray $(BENCH_ROOT)/SPEC-benchmark-ref.ini
+calculix = $(BENCH_ROOT)/calculix -i $(BENCH_ROOT)/hyperviscoplastic
+hammer_nph3 = $(BENCH_ROOT)/hmmer $(BENCH_ROOT)/nph3.hmm $(BENCH_ROOT)/swiss41
+hammer_retro = $(BENCH_ROOT)/hmmer --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 $(BENCH_ROOT)/retro.hmm
+sjeng = $(BENCH_ROOT)/sjeng $(BENCH_ROOT)/ref.txt
+GemsFDTD = $(BENCH_ROOT)/GemsFDTD
+omnetpp = $(BENCH_ROOT)/omnetpp $(BENCH_ROOT)/omnetpp.ini
+astar_BigLakes2048 = $(BENCH_ROOT)/astar $(BENCH_ROOT)/BigLakes2048.cfg
+astar_rivers = $(BENCH_ROOT)/astar $(BENCH_ROOT)/rivers.cfg
+wrf = $(BENCH_ROOT)/wrf
+# sphinx3 = $(BENCH_ROOT)/sphinx_livepretend $(BENCH_ROOT)/ctlfile . $(BENCH_ROOT)/args.an4
+# xalancbmk = $(BENCH_ROOT)/Xalan -v $(BENCH_ROOT)/t5.xml $(BENCH_ROOT)/xalanc.xsl
+
+gcc-%:
+	$(BENCH_CMD) \
+"$(BENCH_ROOT)/gcc" "$(BENCH_ROOT)/$*.i"  -o "$*.s"
+
+%:
+	$(BENCH_CMD) $($@) $(BENCH_PIPE)
