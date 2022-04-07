@@ -128,8 +128,10 @@ $(OBJDIR)propagation$(OBJ_SUFFIX): propagation.cpp propagation.h taint-table.hpp
 
 $(OBJDIR)instrument-propagation$(OBJ_SUFFIX): instrument-propagation.cpp propagation.h operand.hpp util.hpp
 
+$(OBJDIR)taint-table$(OBJ_SUFFIX): taint-table.c taint-table.h
+
 $(OBJDIR)dift-addr$(PINTOOL_SUFFIX): $(OBJDIR)dift-addr$(OBJ_SUFFIX) $(OBJDIR)operand$(OBJ_SUFFIX) \
-$(OBJDIR)instrument-propagation$(OBJ_SUFFIX) $(OBJDIR)propagation$(OBJ_SUFFIX) $(OBJDIR)util$(OBJ_SUFFIX)
+$(OBJDIR)instrument-propagation$(OBJ_SUFFIX) $(OBJDIR)propagation$(OBJ_SUFFIX) $(OBJDIR)util$(OBJ_SUFFIX) $(OBJDIR)taint-table$(OBJ_SUFFIX)
 	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
 
 .PHONY: plot
@@ -144,7 +146,7 @@ $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX): $(OBJDIR)secwatch$(OBJ_SUFFIX)
 
 
 $(OBJDIR)secwatch-demon$(OBJ_SUFFIX): secwatch-demon.c
-	$(CC) -g -O3 -mno-sse -c -o $@ $<
+	$(CC) -g -O0 -mno-sse -c -o $@ $<
 
 $(OBJDIR)secwatch-demon$(EXE_SUFFIX): $(OBJDIR)secwatch-demon.o $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX)
-	$(CC) -L$(OBJDIR) -lsecwatch -Wl,-rpath='$${ORIGIN}' -o $@ $<
+	$(CC) -L$(OBJDIR) -lsecwatch -lcrypto -Wl,-rpath='$${ORIGIN}' -o $@ $<
