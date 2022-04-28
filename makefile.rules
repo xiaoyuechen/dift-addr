@@ -85,7 +85,7 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 all.utest.test: $(UTEST_ROOTS:%=%.utest.test)
 
 %.utest.test: $(OBJDIR)%.utest
-	$(SET_DLL_PATH) $<
+	@$(SET_DLL_PATH) $<
 
 a-b-i.test: $(OBJDIR)a-b-i$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)dift-addr.so -dumpperiod 10000 -- $(OBJDIR)a-b-i$(EXE_SUFFIX)
@@ -106,7 +106,7 @@ ls.test:
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -o "$@.out" -dumpperiod 10000 -- ls -tal
 
 secwatch-demon.test: $(OBJDIR)secwatch-demon$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $< "sEcRetas"
+	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $<
 
 ##############################################################
 #

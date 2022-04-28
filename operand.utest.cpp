@@ -24,9 +24,6 @@
 
 MC_test (operand_test)
 {
-  MC_assert (1);
   REG r = REG_INVALID ();
   MC_assert (!r);
-  OP op;
-  printf ("\n%s\n", OP_ToString (op).c_str ());
 }
