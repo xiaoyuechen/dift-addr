@@ -119,6 +119,9 @@ secwatch-demon.test: $(OBJDIR)secwatch-demon$(EXE_SUFFIX)
 
 utests: dir $(UTESTS)
 
+$(OBJDIR)%.utest$(OBJ_SUFFIX): %.utest.cpp
+	$(CXX) $(TOOL_CXXFLAGS) -Iminicut $(COMP_OBJ)$@ $<
+
 $(OBJDIR)%.utest: $(OBJDIR)%.utest$(OBJ_SUFFIX) $(OBJDIR)%$(OBJ_SUFFIX)
 	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
 
@@ -138,7 +141,7 @@ $(OBJDIR)propagation$(OBJ_SUFFIX): propagation.cpp propagation.h taint.hpp taint
 $(OBJDIR)instrument-propagation$(OBJ_SUFFIX): instrument-propagation.cpp propagation.h operand.hpp util.hpp
 
 $(OBJDIR)dift-addr$(PINTOOL_SUFFIX): $(OBJDIR)dift-addr$(OBJ_SUFFIX) $(OBJDIR)operand$(OBJ_SUFFIX) \
-$(OBJDIR)instrument-propagation$(OBJ_SUFFIX) $(OBJDIR)propagation$(OBJ_SUFFIX) $(OBJDIR)util$(OBJ_SUFFIX) $(OBJDIR)taint-table$(OBJ_SUFFIX)
+$(OBJDIR)instrument-propagation$(OBJ_SUFFIX) $(OBJDIR)propagation$(OBJ_SUFFIX) $(OBJDIR)util$(OBJ_SUFFIX)
 	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
 
 .PHONY: plot
