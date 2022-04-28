@@ -27,6 +27,7 @@
 #include "xed-reg-enum.h"
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <list>
 #include <string>
@@ -70,13 +71,26 @@ static std::list<INS_INFO> ins_info;
 static const INS_INFO *current_ins_info;
 static size_t nexecuted;
 
-bool
+static constexpr uint32_t
+MapReg (REG reg)
+{
+  if (REG_GR_BASE <= reg && reg <= REG_GR_LAST)
+    return reg - REG_GR_BASE;
+
+  if (REG_MM_BASE <= reg && reg <= REG_MM_LAST)
+    return (REG_GR_LAST - REG_GR_BASE + 1) + reg - REG_MM_BASE;
+
+  assert (false);
+  return reg;
+}
+
+static bool
 IsRegRelevant (REG reg)
 {
   return REG_valid (reg) && REG_is_gr (REG_FullRegName (reg));
 }
 
-bool
+static bool
 IsOpRelevant (OP op)
 {
   bool relevant = false;
@@ -103,14 +117,14 @@ IsOpRelevant (OP op)
   return relevant;
 }
 
-bool
+static bool
 IsInsRelevant (INS ins)
 {
   bool irrelevant = INS_IsBranch (ins) || INS_IsCall (ins) || INS_IsNop (ins);
   return !irrelevant;
 }
 
-size_t
+static size_t
 FilterOp (OP *dst, const OP *const op, size_t n, OP_T type, OP_RW rw)
 {
   OP *last = std::remove_copy_if (op, op + n, dst, [=] (OP op) {
@@ -119,22 +133,7 @@ FilterOp (OP *dst, const OP *const op, size_t n, OP_T type, OP_RW rw)
   return last - dst;
 }
 
-size_t
-FilterReg (REG *reg, size_t n)
-{
-  REG *last = std::remove_if (reg, reg + n,
-                              [] (REG reg) { return !IsRegRelevant (reg); });
-  return last - reg;
-}
-
-void
-TransformToFullReg (REG *dst, REG *const src, size_t n)
-{
-  std::transform (src, src + n, dst,
-                  [] (REG reg) { return REG_FullRegName (reg); });
-}
-
-size_t
+static size_t
 CopyMemReg (REG *dst, const OP *const op, size_t n, OP_T t, OP_RW rw)
 {
   OP adr[OP_MAX_OP_COUNT];
@@ -154,7 +153,7 @@ CopyMemReg (REG *dst, const OP *const op, size_t n, OP_T t, OP_RW rw)
   return nreg;
 }
 
-size_t
+static size_t
 CopyReg (REG *dst, const OP *const op, size_t n, OP_RW rw)
 {
   auto copy_reg_reg = [] (REG *dst, const OP *const op, size_t n, OP_RW rw) {
@@ -170,7 +169,7 @@ CopyReg (REG *dst, const OP *const op, size_t n, OP_RW rw)
   return nreg_reg + nadr_reg;
 }
 
-void
+static void
 InitInsReg (INS_REG *regs, INS ins)
 {
   OP op[OP_MAX_OP_COUNT];
@@ -178,19 +177,20 @@ InitInsReg (INS_REG *regs, INS ins)
                                [] (OP op) { return !IsOpRelevant (op); })
                - op;
   regs->reg_r.size = CopyReg (regs->reg_r.data, op, nop, OP_RW_R);
-  TransformToFullReg (regs->reg_r.data, regs->reg_r.data, regs->reg_r.size);
-
   regs->reg_w.size = CopyReg (regs->reg_w.data, op, nop, OP_RW_W);
-  TransformToFullReg (regs->reg_w.data, regs->reg_w.data, regs->reg_w.size);
-
   regs->mem_r.size = CopyMemReg (regs->mem_r.data, op, nop, OP_T_MEM, OP_RW_R);
-  TransformToFullReg (regs->mem_r.data, regs->mem_r.data, regs->mem_r.size);
-
   regs->mem_w.size = CopyMemReg (regs->mem_w.data, op, nop, OP_T_MEM, OP_RW_W);
-  TransformToFullReg (regs->mem_w.data, regs->mem_w.data, regs->mem_w.size);
+
+  REG_ARRAY *ra[] = { &regs->reg_r, &regs->reg_w, &regs->mem_r, &regs->mem_w };
+  for (auto r : ra)
+    {
+      std::transform (r->data, r->data + r->size, r->data, [] (REG reg) {
+        return (REG)MapReg (REG_FullRegName (reg));
+      });
+    }
 }
 
-void
+static void
 InitInsInfo (INS_INFO *info, INS ins)
 {
   info->addr = (void *)INS_Address (ins);
@@ -206,68 +206,37 @@ InitInsInfo (INS_INFO *info, INS ins)
   InitInsReg (&info->regs, ins);
 }
 
-void
+static void
 InsertAddr (void *addr)
 {
   addr_any.insert (addr);
 }
 
-void
-PrintPropagateDebugMsg (const INS_INFO *ins_info)
-{
-  fprintf (out, "%s\n", ins_info->disassemble.c_str ());
-  for (UINT32 r = REG_GR_BASE; r <= REG_GR_LAST; ++r)
-    {
-      char row_str[TT_NUM_TAINT + 1];
-      for (UINT32 t = 0; t < TT_NUM_TAINT; ++t)
-        {
-          row_str[t] = PG_IsTainted (pg, r, t) ? '+' : '-';
-        }
-      row_str[TT_NUM_TAINT] = 0;
-      fprintf (out, "\t%s\t%s\n", REG_StringShort ((REG)r).c_str (), row_str);
-    }
-
-  fprintf (out, "\t%zu addr\n", addr_mem_tab.size ());
-}
-
-void
+static void
 DumpHeader ()
 {
   fprintf (out, "executed,addr_mem,addr_any,ins_addr,exhaustion,img,rtn,load_"
                 "offset,from,val\n");
 }
 
-void
+static void
 DumpState (const INS_INFO *info)
 {
-  fprintf (out, "%zu,%zu,%zu,%p,%zu,%s,%s,%p\n", nexecuted,
-           addr_mem_tab.size (), addr_any.size (), info->addr,
-           PG_TaintExhaustionCount (pg), info->img.c_str (),
+  fprintf (out, "%zu,%zu,%zu,%p,%s,%s,%p\n", nexecuted, addr_mem_tab.size (),
+           addr_any.size (), info->addr, info->img.c_str (),
            info->rtn.c_str (), info->load_offset);
 }
 
-void
+static void
 DumpDetailedState (const INS_INFO *info, void *from, void *val)
 {
-  fprintf (out, "%zu,%zu,%zu,%p,%zu,%s,%s,%p,%p,%p\n", nexecuted,
+  fprintf (out, "%zu,%zu,%zu,%p,%s,%s,%p,%p,%p\n", nexecuted,
            addr_mem_tab.size (), addr_any.size (), info->addr,
-           PG_TaintExhaustionCount (pg), info->img.c_str (),
-           info->rtn.c_str (), info->load_offset, from, val);
+           info->img.c_str (), info->rtn.c_str (), info->load_offset, from,
+           val);
 }
 
-void
-DumpSummary ()
-{
-  fprintf (out, "%zu addresses out of %zu; %zu exhaustion\n",
-           addr_mem_tab.size (), addr_any.size (),
-           PG_TaintExhaustionCount (pg));
-  for (auto pair : addr_mem_tab)
-    {
-      fprintf (out, "%p: %p\n", pair.first, pair.second);
-    }
-}
-
-void
+static void
 OnAddrMark (void *from, void *val, void *)
 {
   auto it = addr_mem_tab.find (from);
@@ -286,7 +255,7 @@ OnAddrMark (void *from, void *val, void *)
     }
 }
 
-void
+static void
 OnAddrUnmark (void *ea, void *)
 {
   auto it = addr_mem_tab.find (ea);
@@ -417,11 +386,6 @@ IPG_InstrumentIns (INS ins)
                       IARG_UINT32, regs.reg_r.data[0], /**/
                       IARG_END);
     }
-
-  /* INS_InsertCall ( */
-  /*     ins, IPOINT_BEFORE, */
-  /*     (AFUNPTR)[] { PrintPropagateDebugMsg (current_ins_info); }, IARG_END);
-   */
 }
 
 void

@@ -125,6 +125,21 @@ public:
       }
   }
 
+  size_t
+  Count (TAINT t) const
+  {
+    size_t count = 0;
+    for (size_t s = 0; s < NSET; ++s)
+      {
+        for (size_t ass = 0; ass < NASS; ++ass)
+          {
+            count += set[s].entry[ass].taint_array[t];
+          }
+      }
+
+    return count;
+  }
+
 private:
   struct CACHE_SET
   {

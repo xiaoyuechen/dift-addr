@@ -53,7 +53,7 @@ DLL_ROOTS :=
 LIB_ROOTS :=
 
 # This defines any unit tests that need to be build
-UTEST_ROOTS := taint-table operand
+UTEST_ROOTS := taint-table operand taint-cache taint-queue
 
 UTESTS := $(UTEST_ROOTS:%=$(OBJDIR)%.utest)
 
@@ -122,13 +122,20 @@ utests: dir $(UTESTS)
 $(OBJDIR)%.utest: $(OBJDIR)%.utest$(OBJ_SUFFIX) $(OBJDIR)%$(OBJ_SUFFIX)
 	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
 
+$(OBJDIR)taint-table.utest: $(OBJDIR)taint-table.utest$(OBJ_SUFFIX)
+	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
+
+$(OBJDIR)taint-cache.utest: $(OBJDIR)taint-cache.utest$(OBJ_SUFFIX)
+	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
+
+$(OBJDIR)taint-queue.utest: $(OBJDIR)taint-queue.utest$(OBJ_SUFFIX)
+	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
+
 $(OBJDIR)operand$(OBJ_SUFFIX): operand.cpp operand.hpp
 
-$(OBJDIR)propagation$(OBJ_SUFFIX): propagation.cpp propagation.h taint-table.hpp
+$(OBJDIR)propagation$(OBJ_SUFFIX): propagation.cpp propagation.h taint.hpp taint-table.hpp taint-cache.hpp
 
 $(OBJDIR)instrument-propagation$(OBJ_SUFFIX): instrument-propagation.cpp propagation.h operand.hpp util.hpp
-
-$(OBJDIR)taint-table$(OBJ_SUFFIX): taint-table.c taint-table.h
 
 $(OBJDIR)dift-addr$(PINTOOL_SUFFIX): $(OBJDIR)dift-addr$(OBJ_SUFFIX) $(OBJDIR)operand$(OBJ_SUFFIX) \
 $(OBJDIR)instrument-propagation$(OBJ_SUFFIX) $(OBJDIR)propagation$(OBJ_SUFFIX) $(OBJDIR)util$(OBJ_SUFFIX) $(OBJDIR)taint-table$(OBJ_SUFFIX)
@@ -144,9 +151,8 @@ $(OBJDIR)secwatch$(OBJ_SUFFIX): secwatch.h
 $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX): $(OBJDIR)secwatch$(OBJ_SUFFIX)
 	$(CC) -fPIC -shared -Wl,-soname,libsecwatch$(PINTOOL_SUFFIX) -o $@ $^ -lc
 
-
 $(OBJDIR)secwatch-demon$(OBJ_SUFFIX): secwatch-demon.c
-	$(CC) -g -O0 -mno-sse -c -o $@ $<
+	$(CC) -g -O0 -c -o $@ $<
 
 $(OBJDIR)secwatch-demon$(EXE_SUFFIX): $(OBJDIR)secwatch-demon.o $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX)
 	$(CC) -L$(OBJDIR) -lsecwatch -lcrypto -Wl,-rpath='$${ORIGIN}' -o $@ $<

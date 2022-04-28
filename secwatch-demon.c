@@ -19,15 +19,16 @@
  */
 
 #include "secwatch.h"
+#include <openssl/aes.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-const unsigned char a[256 * 64];
+unsigned char a[256 * 64];
 
 static void
-access (const char *data, size_t n)
+access (const unsigned char *data, size_t n)
 {
   for (size_t i = 0; i < n; ++i)
     {
@@ -38,12 +39,25 @@ access (const char *data, size_t n)
 int
 main (int argc, char *argv[argc + 1])
 {
-  size_t size = 64;
-  char *s0 = malloc (size);
+  size_t size = 512;
+  unsigned char *s0 = malloc (size);
+  unsigned char *s1 = malloc (size);
   SEC_Watch (s0, size);
-  encrypt (dst, s0);
-  free (s0);
+
+  printf ("a %p\n", a);
+  printf ("s0 %p\n", s0);
+  printf ("s1 %p\n", s1);
+
+  for (size_t i = 0; i < size; ++i)
+    {
+      s1[i] = s0[i];
+    }
+  access (s1, size);
+
   SEC_Unwatch (s0);
+
+  free (s0);
+  free (s1);
 
   return 0;
 }

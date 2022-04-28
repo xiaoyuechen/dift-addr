@@ -21,193 +21,50 @@
 #ifndef TAINT_TABLE_HPP
 #define TAINT_TABLE_HPP
 
-#include <algorithm>
-#include <bitset>
 #include <cassert>
 #include <cstddef>
-#include <sstream>
-#include <string>
-#include <unordered_map>
 
-template <size_t NUM_ROW, size_t NUM_TAINT> class TAINT_TABLE
+#include "taint.hpp"
+
+template <size_t NROW> class TAINT_TABLE
 {
 public:
-  using ROW = size_t;
-  using TAINT = size_t;
-  using TAINT_SET = std::bitset<NUM_TAINT>;
-
-  bool
-  IsTainted (ROW row, TAINT taint) const
+  TAINT_ARRAY
+  Read (size_t row) const
   {
-    assert (row < NUM_ROW && taint < NUM_TAINT);
-
-    return table_[row][taint];
+    assert (row < NROW);
+    return table[row];
   }
 
   void
-  Taint (ROW row, TAINT taint)
+  Write (size_t row, TAINT_ARRAY ta)
   {
-    assert (row < NUM_ROW && taint < NUM_TAINT);
-
-    if (table_[row][taint])
-      return;
-
-    table_[row][taint] = true;
-
-    timestamp_[taint] = time_++;
+    assert (row < NROW);
+    table[row] = ta;
   }
 
   void
-  Untaint (ROW row, TAINT taint)
+  ClearTaint (TAINT t)
   {
-    assert (row < NUM_ROW && taint < NUM_TAINT);
-
-    if (!table_[row][taint])
-      return;
-
-    table_[row][taint] = false;
-  }
-
-  void
-  UntaintCol (TAINT taint)
-  {
-    assert (taint < NUM_TAINT);
-
-    for (size_t row = 0; row < NUM_ROW; ++row)
+    for (size_t r = 0; r < NROW; ++r)
       {
-        Untaint (row, taint);
+        table[r][t] = false;
       }
-  }
-
-  void
-  Union (ROW dst, ROW src1, ROW src2)
-  {
-    assert (dst < NUM_ROW && src1 < NUM_ROW && src2 < NUM_ROW);
-
-    table_[dst] = table_[src1] | table_[src2];
-  }
-
-  void
-  Diff (ROW dst, ROW src1, ROW src2)
-  {
-    assert (dst < NUM_ROW && src1 < NUM_ROW && src2 < NUM_ROW);
-
-    table_[dst] = table_[src1] ^ table_[src2];
-  }
-
-  TAINT
-  NextAvailableTaint ()
-  {
-    TAINT taint;
-
-    size_t taint_count[NUM_TAINT]{};
-    for (ROW r = 0; r < NUM_ROW; ++r)
-      {
-        for (TAINT t = 0; t < NUM_TAINT; ++t)
-          {
-            taint_count[t] += table_[r][t];
-          }
-      }
-
-    size_t *available = std::find (taint_count, taint_count + NUM_TAINT, 0);
-    if (available != taint_count + NUM_TAINT)
-      {
-        taint = available - taint_count;
-      }
-    else
-      {
-        size_t *oldest = std::min_element (timestamp_, timestamp_ + NUM_TAINT);
-        taint = oldest - timestamp_;
-        UntaintCol (taint);
-
-        ++exhaustion_count_;
-      }
-
-    return taint;
-  }
-
-  std::string
-  ToString (std::string (*start_line) (ROW) = nullptr, ROW first = 0,
-            ROW last = NUM_ROW) const
-  {
-    std::stringstream buff{};
-    for (const std::bitset<NUM_TAINT> *it = table_ + first;
-         it != table_ + last; ++it)
-      {
-        if (start_line)
-          {
-            buff << start_line (it - table_);
-          }
-        buff << *it << "\n";
-      }
-    return buff.str ();
   }
 
   size_t
-  GetExhaustionCount () const
+  Count (TAINT t) const
   {
-    return exhaustion_count_;
+    size_t count = 0;
+    for (size_t r = 0; r < NROW; ++r)
+      {
+        count += table[r][t];
+      }
+    return count;
   }
 
 private:
-  TAINT_SET table_[NUM_ROW]{};
-  size_t time_ = 0;
-  size_t timestamp_[NUM_TAINT]{};
-  size_t exhaustion_count_ = 0;
-};
-
-template <size_t NUM_ROW, size_t NUM_TAINT> class HASH_TAINT_TABLE
-{
-public:
-  using ROW = void *;
-  using TAINT = size_t;
-  using TAINT_SET = std::bitset<NUM_TAINT>;
-
-  bool
-  IsTainted (ROW row, TAINT taint) const
-  {
-    auto it = table_.find (row);
-    if (it != table_.end ())
-      {
-        return it->second[taint];
-      }
-
-    return false;
-  }
-
-  void
-  Taint (ROW row, TAINT taint)
-  {
-    table_[row][taint] = true;
-  }
-
-  void
-  Untaint (ROW row, TAINT taint)
-  {
-    auto it = table_.find (row);
-    if (it == table_.end ())
-      return;
-
-    it->second[taint] = false;
-    if (it->second.none ())
-      {
-        table_.erase (it);
-      }
-  }
-
-  void
-  UntaintCol (TAINT taint)
-  {
-    assert (taint < NUM_TAINT);
-
-    for (auto it = table_.begin (); it != table_.end (); ++it)
-      {
-        it->second[taint] = false;
-      }
-  }
-
-private:
-  std::unordered_map<void *, TAINT_SET> table_{};
+  TAINT_ARRAY table[NROW]{};
 };
 
 #endif
