@@ -215,8 +215,9 @@ InsertAddr (void *addr)
 static void
 DumpHeader ()
 {
-  fprintf (out, "executed,addr_mem,addr_any,ins_addr,exhaustion,img,rtn,load_"
-                "offset,from,val\n");
+  fprintf (
+      out,
+      "executed,addr_mem,addr_any,ins_addr,img,rtn,load_offset,from,val\n");
 }
 
 static void
@@ -262,7 +263,11 @@ OnAddrUnmark (void *ea, void *)
   if (it != addr_mem_tab.end ())
     {
       addr_mem_tab.erase (it);
-      if (nexecuted > warmup && nexecuted - last_dump_nexecuted >= period)
+      if (period == 1)
+        {
+          DumpDetailedState (current_ins_info, ea, nullptr);
+        }
+      else if (nexecuted > warmup && nexecuted - last_dump_nexecuted >= period)
         {
           DumpState (current_ins_info);
           last_dump_nexecuted = nexecuted;
