@@ -33,7 +33,7 @@ public:
     for (TAINT t = 0; t < NTAINT; ++t)
       {
         node[t].taint = t;
-        if (t > 1)
+        if (t > 0)
           {
             node[t].previous = &node[t - 1];
           }
@@ -61,6 +61,11 @@ public:
   void
   MakeMRU (TAINT t)
   {
+    if (tail == &node[t])
+      {
+        return;
+      }
+
     if (node[t].previous)
       {
         node[t].previous->next = node[t].next;
