@@ -77,17 +77,18 @@ MapReg (REG reg)
   if (REG_GR_BASE <= reg && reg <= REG_GR_LAST)
     return reg - REG_GR_BASE;
 
-  if (REG_MM_BASE <= reg && reg <= REG_MM_LAST)
+  if (REG_MM_BASE <= reg && reg <= REG_ZMM_LAST)
     return (REG_GR_LAST - REG_GR_BASE + 1) + reg - REG_MM_BASE;
 
-  assert (false);
+  assert (false && "reg must be in domain");
   return reg;
 }
 
 static bool
 IsRegRelevant (REG reg)
 {
-  return REG_valid (reg) && REG_is_gr (REG_FullRegName (reg));
+  return REG_valid (reg)
+         && (REG_is_gr (REG_FullRegName (reg)) || REG_is_xmm_ymm_zmm (reg));
 }
 
 static bool
@@ -184,6 +185,7 @@ InitInsReg (INS_REG *regs, INS ins)
   REG_ARRAY *ra[] = { &regs->reg_r, &regs->reg_w, &regs->mem_r, &regs->mem_w };
   for (auto r : ra)
     {
+      r->size = std::unique (r->data, r->data + r->size) - r->data;
       std::transform (r->data, r->data + r->size, r->data, [] (REG reg) {
         return (REG)MapReg (REG_FullRegName (reg));
       });
@@ -337,7 +339,7 @@ IPG_InstrumentIns (INS ins)
       IARG_PTR, &info, IARG_END);
 
   INS_REG &regs = info.regs;
-  if (!regs.mem_r.size)
+  if (!regs.mem_r.size && !regs.mem_w.size)
     {
       INS_InsertCall (
           ins, IPOINT_BEFORE,                                       /**/
@@ -382,8 +384,8 @@ IPG_InstrumentIns (INS ins)
                       IARG_END);
     }
 
-  if (INS_Opcode (ins) == XED_ICLASS_XOR && regs.reg_r.size && regs.reg_w.size
-      && regs.reg_r.data[0] == regs.reg_w.data[0])
+  if (INS_Opcode (ins) == XED_ICLASS_XOR && regs.reg_r.size == 1
+      && regs.reg_w.size == 1 && regs.reg_r.data[0] == regs.reg_w.data[0])
     {
       INS_InsertCall (ins, IPOINT_BEFORE,              /**/
                       (AFUNPTR)PG_PropagateRegClear,   /**/

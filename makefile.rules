@@ -155,7 +155,7 @@ $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX): $(OBJDIR)secwatch$(OBJ_SUFFIX)
 	$(CC) -fPIC -shared -Wl,-soname,libsecwatch$(PINTOOL_SUFFIX) -o $@ $^ -lc
 
 $(OBJDIR)secwatch-demon$(OBJ_SUFFIX): secwatch-demon.c
-	$(CC) -g -O0 -c -o $@ $<
+	$(CC) -g -O1 -c -o $@ $<
 
 $(OBJDIR)secwatch-demon$(EXE_SUFFIX): $(OBJDIR)secwatch-demon.o $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX)
 	$(CC) -L$(OBJDIR) -lsecwatch -lcrypto -Wl,-rpath='$${ORIGIN}' -o $@ $<

@@ -42,17 +42,26 @@ main (int argc, char *argv[argc + 1])
   size_t size = 512;
   unsigned char *s0 = malloc (size);
   unsigned char *s1 = malloc (size);
+  unsigned char *s2 = malloc (size);
+
   SEC_Watch (s0, size);
 
   printf ("a %p\n", a);
   printf ("s0 %p\n", s0);
   printf ("s1 %p\n", s1);
 
+  printf ("cp s0->s1\n");
   for (size_t i = 0; i < size; ++i)
     {
-      s1[i] = s0[i];
+      s1[i] = s0[i] + s0[(i + 64) % size] + 5;
     }
-  access (s1, size);
+  printf ("cp s1->s2\n");
+  for (size_t i = 0; i < size; ++i)
+    {
+      s2[i] = s1[i] / 3 + 10;
+    }
+
+  access (s2, size);
 
   SEC_Unwatch (s0);
 
