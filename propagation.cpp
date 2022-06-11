@@ -79,6 +79,8 @@ struct PG_PROPAGATOR
   PG_ADDRESS_UNMARK_HOOK addr_unmark_hook;
   bool watch = false;
   std::set<WATCH_BLOCK> watch_set{};
+  PG_REG_MAP_FN reg_map_fn{};
+  PG_INS_ADDR_FN ins_addr_fn{};
 };
 
 static bool
@@ -147,6 +149,18 @@ PG_AddToAddressUnmarkHook (PG_PROPAGATOR *pg, PG_ADDRESS_UNMARK_FN fn,
 }
 
 void
+PG_SetRegMapFn (PG_PROPAGATOR *pg, PG_REG_MAP_FN fn)
+{
+  pg->reg_map_fn = fn;
+}
+
+void
+PG_SetInsAddrFn (PG_PROPAGATOR *pg, PG_INS_ADDR_FN fn)
+{
+  pg->ins_addr_fn = fn;
+}
+
+void
 InvokeAddressMarkCallback (const ADDRESS_MARK_CALLBACK *callback, size_t n,
                            void *from, void *val)
 {
@@ -174,28 +188,39 @@ ClearTaint (PG_PROPAGATOR *pg, TAINT t)
 }
 
 std::string
-RegsToString (const uint32_t *reg, size_t n)
+RegsToString (PG_REG_MAP_FN map, const uint32_t *reg, size_t n)
 {
-  std::string str ("reg");
+  std::string str{};
   for (size_t i = 0; i < n; ++i)
     {
-      char reg_str[10];
-      sprintf (reg_str, " %u", reg[i]);
+      char reg_str[16];
+      if (map)
+        {
+          map (reg[i], reg_str);
+        }
+      else
+        {
+          sprintf (reg_str, "reg %u", reg[i]);
+        }
       str += reg_str;
+      if (i != n - 1)
+        {
+          str += " ";
+        }
     }
   return str;
 }
 
 std::string
-TaintedRegsToString (const TAINT_TABLE<NREG> &tt, const uint32_t *reg,
-                     size_t n)
+TaintedRegsToString (const TAINT_TABLE<NREG> &tt, PG_REG_MAP_FN map,
+                     const uint32_t *reg, size_t n)
 {
   uint32_t copy[16];
   std::copy (reg, reg + n, copy);
   n = std::remove_if (copy, copy + n,
                       [&] (uint32_t r) { return tt.Read (r).none (); })
       - copy;
-  return RegsToString (copy, n);
+  return RegsToString (map, copy, n);
 }
 
 std::string
@@ -260,9 +285,10 @@ PG_PropagateRegToReg (PG_PROPAGATOR *pg, const uint32_t *w, size_t nw,
 #if DEBUG
   if (src.any ())
     {
-      printf ("%s %s -> %s\n", TaintedRegsToString (pg->tt, r, nr).c_str (),
+      printf ("%lx:\t%s %s -> %s\n", pg->ins_addr_fn (),
+              TaintedRegsToString (pg->tt, pg->reg_map_fn, r, nr).c_str (),
               TaintArrayToString (src).c_str (),
-              TaintedRegsToString (pg->tt, w, nw).c_str ());
+              TaintedRegsToString (pg->tt, pg->reg_map_fn, w, nw).c_str ());
     }
 #endif
 }
@@ -284,20 +310,28 @@ FindUnusedTaint (const PG_PROPAGATOR *pg, TAINT *out)
 
 void
 PG_PropagateMemToReg (PG_PROPAGATOR *pg, const uint32_t *reg_w, size_t nreg_w,
-                      const uint32_t *mem_r, size_t nmem_r, void *ea)
+                      const uint32_t *mem_r, size_t nmem_r,
+                      const uint32_t *reg_r, size_t nreg_r, void *ea)
 {
   {
     TAINT_ARRAY ta = OrTaints (pg->tt, mem_r, nmem_r);
 #if DEBUG
     if (ta.any ())
       {
-        printf ("[ %s %s ] = %p ->\n",
-                TaintedRegsToString (pg->tt, mem_r, nmem_r).c_str (),
+        printf ("%lx:\t[ %s %s ] = %p ->\n", pg->ins_addr_fn (),
+                TaintedRegsToString (pg->tt, pg->reg_map_fn, mem_r, nmem_r)
+                    .c_str (),
                 TaintArrayToString (ta).c_str (), ea);
       }
 #endif
     MarkTaintsAsAddr (pg, ta, ea);
   }
+
+  TAINT_ARRAY src_taint_array{};
+  for (size_t i = 0; i < nreg_r; ++i)
+    {
+      src_taint_array |= pg->tt.Read (reg_r[i]);
+    }
 
   if (IsAddressWatched (pg, ea))
     {
@@ -312,19 +346,20 @@ PG_PropagateMemToReg (PG_PROPAGATOR *pg, const uint32_t *reg_w, size_t nreg_w,
       pg->tea[t] = ea;
       for (size_t i = 0; i < nreg_w; ++i)
         {
-          pg->tt.Write (reg_w[i], TAINT_ARRAY{}.set (t));
+          pg->tt.Write (reg_w[i], src_taint_array | TAINT_ARRAY{}.set (t));
         }
 #if DEBUG
-      printf ("%p %s -> %s\n", ea,
+      printf ("%lx:\t%p %s -> %s\n", pg->ins_addr_fn (), ea,
               TaintArrayToString (TAINT_ARRAY{}.set (t)).c_str (),
-              TaintedRegsToString (pg->tt, reg_w, nreg_w).c_str ());
+              TaintedRegsToString (pg->tt, pg->reg_map_fn, reg_w, nreg_w)
+                  .c_str ());
 #endif
     }
   else
     {
       for (size_t i = 0; i < nreg_w; ++i)
         {
-          pg->tt.Write (reg_w[i], TAINT_ARRAY{});
+          pg->tt.Write (reg_w[i], src_taint_array);
         }
     }
 
@@ -337,8 +372,10 @@ PG_PropagateMemToReg (PG_PROPAGATOR *pg, const uint32_t *reg_w, size_t nreg_w,
         }
 
 #if DEBUG
-      printf ("%p %s -> %s\n", ea, TaintArrayToString (ta).c_str (),
-              TaintedRegsToString (pg->tt, reg_w, nreg_w).c_str ());
+      printf ("%lx:\t%p %s -> %s\n", pg->ins_addr_fn (), ea,
+              TaintArrayToString (ta).c_str (),
+              TaintedRegsToString (pg->tt, pg->reg_map_fn, reg_w, nreg_w)
+                  .c_str ());
 #endif
     }
 }
@@ -351,9 +388,10 @@ PG_PropagateRegToMem (PG_PROPAGATOR *pg, const uint32_t *mem_w, size_t nmem_w,
   if (src.any ())
     {
 #if DEBUG
-      printf ("%s %s -> %p\n",
-              TaintedRegsToString (pg->tt, reg_r, nreg_r).c_str (),
-              TaintArrayToString (src).c_str (), ea);
+      printf (
+          "%lx:\t%s %s -> %p\n", pg->ins_addr_fn (),
+          TaintedRegsToString (pg->tt, pg->reg_map_fn, reg_r, nreg_r).c_str (),
+          TaintArrayToString (src).c_str (), ea);
 #endif
       pg->tc.Write (ea, src);
     }
@@ -362,9 +400,10 @@ PG_PropagateRegToMem (PG_PROPAGATOR *pg, const uint32_t *mem_w, size_t nmem_w,
   if (mem.any ())
     {
 #if DEBUG
-      printf ("-> [ %s %s ] = %p\n",
-              TaintedRegsToString (pg->tt, mem_w, nmem_w).c_str (),
-              TaintArrayToString (mem).c_str (), ea);
+      printf (
+          "%lx:\t-> [ %s %s ] = %p\n", pg->ins_addr_fn (),
+          TaintedRegsToString (pg->tt, pg->reg_map_fn, mem_w, nmem_w).c_str (),
+          TaintArrayToString (mem).c_str (), ea);
 #endif
       MarkTaintsAsAddr (pg, mem, ea);
     }

@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <list>
 #include <string>
 #include <unordered_map>
@@ -82,6 +83,23 @@ MapReg (REG reg)
 
   assert (false && "reg must be in domain");
   return reg;
+}
+
+static constexpr REG
+InverseMapReg (uint32_t reg)
+{
+  if (reg <= REG_GR_LAST - REG_GR_BASE)
+    {
+      return (REG)(REG_GR_BASE + reg);
+    }
+
+  if (reg < REG_GR_LAST - REG_GR_BASE + REG_ZMM_LAST - REG_MM_BASE)
+    {
+      return (REG)(reg - (REG_GR_LAST - REG_GR_BASE + 1) + REG_MM_BASE);
+    }
+
+  assert (false);
+  return REG_INVALID ();
 }
 
 static bool
@@ -283,6 +301,14 @@ IPG_Init ()
   pg = PG_CreatePropagator ();
   PG_AddToAddressMarkHook (pg, OnAddrMark, 0);
   PG_AddToAddressUnmarkHook (pg, OnAddrUnmark, 0);
+  PG_SetRegMapFn (pg, [] (uint32_t reg, char str[16]) {
+    std::string cppstr = "%" + REG_StringShort (InverseMapReg (reg));
+    std::strcpy (str, cppstr.c_str ());
+  });
+  PG_SetInsAddrFn (pg, [] () {
+    return (uint64_t)current_ins_info->addr
+           - (uint64_t)current_ins_info->load_offset;
+  });
 }
 
 void
@@ -339,6 +365,7 @@ IPG_InstrumentIns (INS ins)
       IARG_PTR, &info, IARG_END);
 
   INS_REG &regs = info.regs;
+
   if (!regs.mem_r.size && !regs.mem_w.size)
     {
       INS_InsertCall (
@@ -358,6 +385,7 @@ IPG_InstrumentIns (INS ins)
           IARG_PTR, pg,                                             /**/
           IARG_PTR, regs.reg_w.data, IARG_ADDRINT, regs.reg_w.size, /**/
           IARG_PTR, regs.mem_r.data, IARG_ADDRINT, regs.mem_r.size, /**/
+          IARG_PTR, regs.reg_r.data, IARG_ADDRINT, regs.reg_r.size, /**/
           IARG_MEMORYREAD_EA,                                       /**/
           IARG_END);
 
@@ -384,8 +412,9 @@ IPG_InstrumentIns (INS ins)
                       IARG_END);
     }
 
-  if (INS_Opcode (ins) == XED_ICLASS_XOR && regs.reg_r.size == 1
-      && regs.reg_w.size == 1 && regs.reg_r.data[0] == regs.reg_w.data[0])
+  if (INS_Opcode (ins) == XED_ICLASS_XOR && !regs.mem_r.size
+      && regs.reg_r.size == 1 && regs.reg_w.size == 1
+      && regs.reg_r.data[0] == regs.reg_w.data[0])
     {
       INS_InsertCall (ins, IPOINT_BEFORE,              /**/
                       (AFUNPTR)PG_PropagateRegClear,   /**/

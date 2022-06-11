@@ -40,6 +40,14 @@ void PG_Watch (PG_PROPAGATOR *pg, void *addr, size_t size);
 
 void PG_Unwatch (PG_PROPAGATOR *pg, void *addr);
 
+/* TODO: Hack. Use hook. */
+typedef void (*PG_REG_MAP_FN) (uint32_t reg, char str[]);
+void PG_SetRegMapFn (PG_PROPAGATOR *pg, PG_REG_MAP_FN fn);
+
+/* TODO: Hack. Use hook. */
+typedef uint64_t (*PG_INS_ADDR_FN) ();
+void PG_SetInsAddrFn (PG_PROPAGATOR *pg, PG_INS_ADDR_FN fn);
+
 void PG_AddToAddressMarkHook (PG_PROPAGATOR *pg, PG_ADDRESS_MARK_FN fn,
                               void *user_ptr);
 
@@ -51,7 +59,7 @@ void PG_PropagateRegToReg (PG_PROPAGATOR *pg, const uint32_t *w, size_t nw,
 
 void PG_PropagateMemToReg (PG_PROPAGATOR *pg, const uint32_t *reg_w,
                            size_t nreg_w, const uint32_t *mem_r, size_t nmem_r,
-                           void *ea);
+                           const uint32_t *reg_r, size_t nreg_r, void *ea);
 
 void PG_PropagateRegToMem (PG_PROPAGATOR *pg, const uint32_t *mem_w,
                            size_t nmem_w, const uint32_t *reg_r, size_t nreg_r,

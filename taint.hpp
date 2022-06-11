@@ -25,7 +25,7 @@
 #include <cstddef>
 
 #ifndef NTAINT
-#define NTAINT 64
+#define NTAINT 128
 #endif
 
 using TAINT = size_t;
