@@ -41,7 +41,7 @@ TOOL_ROOTS := dift-addr
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := a-b-i fibonacci aos sort secwatch-demon aes
+APP_ROOTS := a-b-i fibonacci aos sort secwatch-demon
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
