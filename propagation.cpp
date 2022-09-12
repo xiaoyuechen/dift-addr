@@ -333,6 +333,21 @@ PG_PropagateMemToReg (PG_PROPAGATOR *pg, const uint32_t *reg_w, size_t nreg_w,
       src_taint_array |= pg->tt.Read (reg_r[i]);
     }
 
+  for (size_t i = 0; i < nreg_w; ++i)
+    {
+      pg->tt.Write (reg_w[i], src_taint_array);
+    }
+
+  if (src_taint_array.any ())
+    {
+      printf (
+          "%lx:\t%s %s -> %s\n", pg->ins_addr_fn (),
+          TaintedRegsToString (pg->tt, pg->reg_map_fn, reg_r, nreg_r).c_str (),
+          TaintArrayToString (src_taint_array).c_str (),
+          TaintedRegsToString (pg->tt, pg->reg_map_fn, reg_w, nreg_w)
+              .c_str ());
+    }
+
   if (IsAddressWatched (pg, ea))
     {
       TAINT t;
@@ -354,13 +369,6 @@ PG_PropagateMemToReg (PG_PROPAGATOR *pg, const uint32_t *reg_w, size_t nreg_w,
               TaintedRegsToString (pg->tt, pg->reg_map_fn, reg_w, nreg_w)
                   .c_str ());
 #endif
-    }
-  else
-    {
-      for (size_t i = 0; i < nreg_w; ++i)
-        {
-          pg->tt.Write (reg_w[i], src_taint_array);
-        }
     }
 
   TAINT_ARRAY ta;
