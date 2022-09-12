@@ -62,7 +62,7 @@ static size_t warmup = 0;
 static size_t period = 1;
 static size_t last_dump_nexecuted = 0;
 static PG_PROPAGATOR *pg;
-using ADDR_SET = std::tr1::unordered_set<void *>;
+using ADDR_SET = std::unordered_set<void *>;
 static ADDR_SET addr_any;
 static ADDR_SET ins_addr;
 using ADDR_TAB = std::unordered_map<void *, void *>;

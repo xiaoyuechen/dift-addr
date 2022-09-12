@@ -26,7 +26,6 @@
 #include <cstdio>
 #include <iostream>
 #include <set>
-#include <stl/_algo.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
