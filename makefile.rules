@@ -41,7 +41,7 @@ TOOL_ROOTS := dift-addr
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := a-b-i fibonacci aos sort secwatch-demon
+APP_ROOTS := a-b-i fibonacci aos sort secwatch-demon aes
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
@@ -100,13 +100,23 @@ sort.test: $(OBJDIR)sort$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -filter_no_shared_libs -- $(OBJDIR)sort$(EXE_SUFFIX)
 
 hashset.test: $(OBJDIR)hashset$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -filter_no_shared_libs -- $(OBJDIR)hashset$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -filter_no_shared_libs -o "$@.out" -- $(OBJDIR)hashset$(EXE_SUFFIX)
 
 ls.test:
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -o "$@.out" -dumpperiod 10000 -- ls -tal
 
 secwatch-demon.test: $(OBJDIR)secwatch-demon$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $<
+
+aes-t.test: $(OBJDIR)aes-comb$(EXE_SUFFIX)
+	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $<
+
+aes-vp.test: $(OBJDIR)aes-comb$(EXE_SUFFIX)
+	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $< vp
+
+aes-ni.test: $(OBJDIR)aes-comb$(EXE_SUFFIX)
+	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $< ni
+
 
 ##############################################################
 #
@@ -157,5 +167,11 @@ $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX): $(OBJDIR)secwatch$(OBJ_SUFFIX)
 $(OBJDIR)secwatch-demon$(OBJ_SUFFIX): secwatch-demon.c
 	$(CC) -g -O1 -c -o $@ $<
 
-$(OBJDIR)secwatch-demon$(EXE_SUFFIX): $(OBJDIR)secwatch-demon.o $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX)
-	$(CC) -L$(OBJDIR) -lsecwatch -lcrypto -Wl,-rpath='$${ORIGIN}' -o $@ $<
+$(OBJDIR)secwatch-demon$(EXE_SUFFIX): $(OBJDIR)secwatch-demon$(OBJ_SUFFIX) $(OBJDIR)libsecwatch$(PINTOOL_SUFFIX)
+	$(CC) -L$(OBJDIR) -lsecwatch -Wl,-rpath='$${ORIGIN}' -o $@ $<
+
+$(OBJDIR)aes-comb$(OBJ_SUFFIX): aes-comb.c
+	$(CC) -c -I extern/include -o $@ $<
+
+$(OBJDIR)aes-comb$(EXE_SUFFIX): $(OBJDIR)aes-comb$(OBJ_SUFFIX)
+	$(CC) -L$(OBJDIR) -I extern/include -lsecwatch -o $@ $< extern/aes-asm/libcrypto.a
