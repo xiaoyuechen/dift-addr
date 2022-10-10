@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef struct PG_PROPAGATOR PG_PROPAGATOR;
 
@@ -40,7 +41,10 @@ void PG_Watch (PG_PROPAGATOR *pg, void *addr, size_t size);
 
 void PG_Unwatch (PG_PROPAGATOR *pg, void *addr);
 
-/* TODO: Hack. Use hook. */
+void PG_SetTrace (PG_PROPAGATOR *pg, bool shouldTrace);
+
+void PG_SetTraceFile (PG_PROPAGATOR *pg, FILE* file);
+
 typedef void (*PG_REG_MAP_FN) (uint32_t reg, char str[]);
 void PG_SetRegMapFn (PG_PROPAGATOR *pg, PG_REG_MAP_FN fn);
 

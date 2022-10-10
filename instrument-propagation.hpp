@@ -36,6 +36,10 @@ void IPG_SetWarmup (size_t nins);
 
 void IPG_SetWatch (bool shouldWatch);
 
+void IPG_SetTrace (bool shouldTrace);
+
+void IPG_SetTraceFile (FILE *file);
+
 void IPG_DumpHeader ();
 
 void IPG_InstrumentIns (INS ins);

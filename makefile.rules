@@ -109,13 +109,13 @@ secwatch-demon.test: $(OBJDIR)secwatch-demon$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $<
 
 aes-t.test: $(OBJDIR)aes-comb$(EXE_SUFFIX)
-	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $<
+	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -trace -- $<
 
 aes-vp.test: $(OBJDIR)aes-comb$(EXE_SUFFIX)
-	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $< vp
+	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -trace -- $< vp
 
 aes-ni.test: $(OBJDIR)aes-comb$(EXE_SUFFIX)
-	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -- $< ni
+	LD_LIBRARY_PATH=$(OBJDIR) $(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -watch -o "$@.out" -trace -- $< ni
 
 
 ##############################################################
@@ -148,7 +148,7 @@ $(OBJDIR)operand$(OBJ_SUFFIX): operand.cpp operand.hpp
 
 $(OBJDIR)propagation$(OBJ_SUFFIX): propagation.cpp propagation.h taint.hpp taint-table.hpp taint-cache.hpp
 
-$(OBJDIR)instrument-propagation$(OBJ_SUFFIX): instrument-propagation.cpp propagation.h operand.hpp util.hpp
+$(OBJDIR)instrument-propagation$(OBJ_SUFFIX): instrument-propagation.cpp instrument-propagation.hpp propagation.h operand.hpp util.hpp
 
 $(OBJDIR)dift-addr$(PINTOOL_SUFFIX): $(OBJDIR)dift-addr$(OBJ_SUFFIX) $(OBJDIR)operand$(OBJ_SUFFIX) \
 $(OBJDIR)instrument-propagation$(OBJ_SUFFIX) $(OBJDIR)propagation$(OBJ_SUFFIX) $(OBJDIR)util$(OBJ_SUFFIX)

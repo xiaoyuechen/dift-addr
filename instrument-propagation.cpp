@@ -18,7 +18,7 @@
  * along with dift-addr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "instrument-propagation.h"
+#include "instrument-propagation.hpp"
 
 #include "operand.hpp"
 #include "propagation.h"
@@ -39,7 +39,7 @@ struct REG_ARRAY
 {
   static constexpr size_t MAX_NREG = 16;
   REG data[MAX_NREG];
-  size_t size;
+  size_t size = 0;
 };
 
 struct INS_REG
@@ -49,12 +49,12 @@ struct INS_REG
 
 struct INS_INFO
 {
-  void *addr;
-  INS_REG regs;
-  std::string disassemble;
-  std::string rtn;
-  std::string img;
-  void *load_offset;
+  void *addr = nullptr;
+  INS_REG regs{};
+  /* std::string disassemble; */
+  /* std::string rtn; */
+  /* std::string img; */
+  /* void *load_offset; */
 };
 
 static FILE *out = stderr;
@@ -67,9 +67,7 @@ static ADDR_SET addr_any;
 static ADDR_SET ins_addr;
 using ADDR_TAB = std::unordered_map<void *, void *>;
 static ADDR_TAB addr_mem_tab;
-
-static std::list<INS_INFO> ins_info;
-static const INS_INFO *current_ins_info;
+static INS_INFO current_ins_info;
 static size_t nexecuted;
 
 static constexpr uint32_t
@@ -214,16 +212,30 @@ static void
 InitInsInfo (INS_INFO *info, INS ins)
 {
   info->addr = (void *)INS_Address (ins);
-  info->disassemble = INS_Disassemble (ins);
-  info->rtn = RTN_Valid (INS_Rtn (ins)) ? RTN_Name (INS_Rtn (ins)) : "";
-  if (RTN_Valid (INS_Rtn (ins))
-      && IMG_Valid (SEC_Img (RTN_Sec (INS_Rtn (ins)))))
-    {
-      IMG img = SEC_Img (RTN_Sec (INS_Rtn (ins)));
-      info->img = UT_StripPath (IMG_Name (img).c_str ());
-      info->load_offset = (void *)IMG_LoadOffset (img);
-    }
   InitInsReg (&info->regs, ins);
+}
+
+template <typename T>
+static void
+Write (T *dst, T t)
+{
+  *dst = t;
+}
+
+static void
+InstrumentCopyInsInfo (INS_INFO *dst, const INS_INFO *src, INS ins)
+{
+  const REG_ARRAY *sra[] = { &src->regs.reg_r, &src->regs.reg_w,
+                             &src->regs.mem_r, &src->regs.mem_w };
+  REG_ARRAY *dra[] = { &dst->regs.reg_r, &dst->regs.reg_w, &dst->regs.mem_r,
+                       &dst->regs.mem_w };
+  for (size_t i = 0; i < sizeof (dra) / sizeof (*dra); ++i)
+    {
+      for (size_t j = 0; j < sra[i]->size; ++j)
+        INS_InsertCall (ins, IPOINT_BEFORE, (AFUNPTR)Write<uint32_t>, IARG_PTR,
+                        &dra[i]->data[j], IARG_UINT32, sra[i]->data[j],
+                        IARG_END);
+    }
 }
 
 static void
@@ -235,26 +247,21 @@ InsertAddr (void *addr)
 static void
 DumpHeader ()
 {
-  fprintf (
-      out,
-      "executed,addr_mem,addr_any,ins_addr,img,rtn,load_offset,from,val\n");
+  fprintf (out, "executed,addr_mem,addr_any,ins_addr,from,val\n");
 }
 
 static void
 DumpState (const INS_INFO *info)
 {
-  fprintf (out, "%zu,%zu,%zu,%p,%s,%s,%p\n", nexecuted, addr_mem_tab.size (),
-           addr_any.size (), info->addr, info->img.c_str (),
-           info->rtn.c_str (), info->load_offset);
+  fprintf (out, "%zu,%zu,%zu,%p\n", nexecuted, addr_mem_tab.size (),
+           addr_any.size (), info->addr);
 }
 
 static void
 DumpDetailedState (const INS_INFO *info, void *from, void *val)
 {
-  fprintf (out, "%zu,%zu,%zu,%p,%s,%s,%p,%p,%p\n", nexecuted,
-           addr_mem_tab.size (), addr_any.size (), info->addr,
-           info->img.c_str (), info->rtn.c_str (), info->load_offset, from,
-           val);
+  fprintf (out, "%zu,%zu,%zu,%p,%p,%p\n", nexecuted, addr_mem_tab.size (),
+           addr_any.size (), info->addr, from, val);
 }
 
 static void
@@ -266,11 +273,11 @@ OnAddrMark (void *from, void *val, void *)
       addr_mem_tab[from] = val;
       if (period == 1)
         {
-          DumpDetailedState (current_ins_info, from, val);
+          DumpDetailedState (&current_ins_info, from, val);
         }
       else if (nexecuted > warmup && nexecuted - last_dump_nexecuted >= period)
         {
-          DumpState (current_ins_info);
+          DumpState (&current_ins_info);
           last_dump_nexecuted = nexecuted;
         }
     }
@@ -285,11 +292,11 @@ OnAddrUnmark (void *ea, void *)
       addr_mem_tab.erase (it);
       if (period == 1)
         {
-          DumpDetailedState (current_ins_info, ea, nullptr);
+          DumpDetailedState (&current_ins_info, ea, nullptr);
         }
       else if (nexecuted > warmup && nexecuted - last_dump_nexecuted >= period)
         {
-          DumpState (current_ins_info);
+          DumpState (&current_ins_info);
           last_dump_nexecuted = nexecuted;
         }
     }
@@ -305,10 +312,7 @@ IPG_Init ()
     std::string cppstr = "%" + REG_StringShort (InverseMapReg (reg));
     std::strcpy (str, cppstr.c_str ());
   });
-  PG_SetInsAddrFn (pg, [] () {
-    return (uint64_t)current_ins_info->addr
-           - (uint64_t)current_ins_info->load_offset;
-  });
+  PG_SetInsAddrFn (pg, [] () { return (uint64_t)current_ins_info.addr; });
 }
 
 void
@@ -336,6 +340,18 @@ IPG_SetWatch (bool shouldWatch)
 }
 
 void
+IPG_SetTrace (bool shouldTrace)
+{
+  PG_SetTrace (pg, shouldTrace);
+}
+
+void
+IPG_SetTraceFile (FILE *file)
+{
+  PG_SetTraceFile (pg, file);
+}
+
+void
 IPG_DumpHeader ()
 {
   DumpHeader ();
@@ -353,18 +369,10 @@ IPG_InstrumentIns (INS ins)
   if (!IsInsRelevant (ins))
     return;
 
-  ins_info.push_back (INS_INFO ());
-  INS_INFO &info = ins_info.back ();
-  InitInsInfo (&info, ins);
+  InitInsInfo (&current_ins_info, ins);
+  InstrumentCopyInsInfo (&current_ins_info, &current_ins_info, ins);
 
-  INS_InsertCall (
-      ins, IPOINT_BEFORE,
-      (AFUNPTR)(void (*) (const INS_INFO *))[](const INS_INFO *info) {
-        current_ins_info = info;
-      },
-      IARG_PTR, &info, IARG_END);
-
-  INS_REG &regs = info.regs;
+  INS_REG &regs = current_ins_info.regs;
 
   if (!regs.mem_r.size && !regs.mem_w.size)
     {

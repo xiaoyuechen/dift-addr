@@ -21,7 +21,7 @@
 #include "pin.H" /* pin.H must be included first */
 
 #include "instlib.H"
-#include "instrument-propagation.h"
+#include "instrument-propagation.hpp"
 #include "util.hpp"
 
 #include <algorithm>
@@ -39,10 +39,21 @@ using std::string;
 INSTLIB::FILTER filter;
 
 FILE *out = stderr;
+FILE *out_img = stderr;
+FILE *out_trace = stderr;
 
 KNOB<string> KnobOutputFile (KNOB_MODE_WRITEONCE, "pintool", "o",
                              "dift-addr.out",
                              "The output file name for dift-addr");
+
+KNOB<string> KnobOutputImgFile (KNOB_MODE_WRITEONCE, "pintool", "oimg",
+                                "dift-addr.img.out",
+                                "The output file name for images");
+
+KNOB<string>
+    KnobOutputTraceFile (KNOB_MODE_WRITEONCE, "pintool", "otrace",
+                         "dift-addr.trace.out",
+                         "The output file name for the trace if -trace is on");
 
 KNOB<size_t> KnobWarmupIns (
     KNOB_MODE_WRITEONCE, "pintool", "warmup", "0",
@@ -54,6 +65,9 @@ KNOB<size_t> KnobDumpPeriod (KNOB_MODE_WRITEONCE, "pintool", "dumpperiod", "1",
 KNOB<bool>
     KnobWatchMode (KNOB_MODE_WRITEONCE, "pintool", "watch", "",
                    "Watch secret using libsecwatch. Do not track everything");
+
+KNOB<bool> KnobTraceMode (KNOB_MODE_WRITEONCE, "pintool", "trace", "",
+                          "Privide a propagation trace");
 
 int
 Usage ()
@@ -91,6 +105,14 @@ Init (int argc, char *argv[])
             ? stderr
             : fopen (KnobOutputFile.Value ().c_str (), "w");
 
+  out_img = KnobOutputImgFile.Value ().empty ()
+                ? stderr
+                : fopen (KnobOutputImgFile.Value ().c_str (), "w");
+
+  out_trace = KnobOutputTraceFile.Value ().empty ()
+                  ? stderr
+                  : fopen (KnobOutputTraceFile.Value ().c_str (), "w");
+
   filter.Activate ();
 
   IPG_Init ();
@@ -98,6 +120,8 @@ Init (int argc, char *argv[])
   IPG_SetWarmup (KnobWarmupIns.Value ());
   IPG_SetWatch (KnobWatchMode.Value ());
   IPG_SetDumpPeriod (KnobDumpPeriod.Value ());
+  IPG_SetTrace (KnobTraceMode.Value ());
+  IPG_SetTraceFile (out_trace);
   IPG_DumpHeader ();
 }
 
@@ -119,7 +143,14 @@ Trace (TRACE trace, void *val)
 void
 ImgLoad (IMG img, void *)
 {
-  if (strstr (UT_StripPath (IMG_Name (img).c_str ()), "libsecwatch.so"))
+  if (IMG_Valid (img))
+    {
+      fprintf (out_img, "%s,%p,%p\n", IMG_Name (img).c_str (),
+               (void *)IMG_LowAddress (img), (void *)IMG_HighAddress (img));
+    }
+
+  if (KnobWatchMode.Value ()
+      && strstr (UT_StripPath (IMG_Name (img).c_str ()), "libsecwatch.so"))
     {
       RTN watch = RTN_FindByName (img, "SEC_Watch");
       if (RTN_Valid (watch))
@@ -144,6 +175,8 @@ Fini (INT32 code, void *v)
 {
   IPG_Fini ();
   fclose (out);
+  fclose (out_img);
+  fclose (out_trace);
 }
 
 int
@@ -152,10 +185,7 @@ main (int argc, char *argv[])
   Init (argc, argv);
 
   TRACE_AddInstrumentFunction (Trace, 0);
-  if (KnobWatchMode.Value ())
-    {
-      IMG_AddInstrumentFunction (ImgLoad, 0);
-    }
+  IMG_AddInstrumentFunction (ImgLoad, 0);
 
   PIN_AddFiniFunction (Fini, 0);
 
