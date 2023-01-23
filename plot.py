@@ -27,21 +27,37 @@ df = pd.read_csv(sys.stdin)
 if len(sys.argv) > 1:
     plt.title(sys.argv[1])
 
+plt.rcParams.update({
+    "text.usetex": True,
+    "legend.fancybox": False,
+    "legend.framealpha": 1.0,
+    "pgf.texsystem": "pdflatex",
+    'font.family': 'serif',
+    'pgf.rcfonts': False,
+    'figure.figsize': (4, 3),
+    'figure.dpi': 300
+})
+
 fig = plt.figure()
 ax = fig.add_subplot(111)
 
-ax.plot(df.executed, df.addr_mem, label='contains memory address')
+plt.plot(df.executed, df.addr_any, label='$|A_i|$', color='tab:red')
+ax.plot(df.executed, df.addr_mem, label='$|L_i|$', color='tab:blue')
 # ax.plot(df.executed, df.addr_any, label='any seen address')
 for i, row in df[df["from"].notna()].iterrows():
     from_lt = int(row["from"], 0) - int(row["load_offset"], 0)
+    print(f"{i}: {row['val']}")
     val_lt = int(row['val'], 0) - int(row['load_offset'], 0)
     leak = (val_lt - int('0x2020', 0)) // 64
-    ax.annotate(
-        f"{row['from']}\n{hex(from_lt)}\n{row['val']}\n{hex(val_lt)}\n\'{chr(leak)}\'\n",
-        xy=(row["executed"], row["addr_mem"]),
-        fontsize=6,
-        ha='center')
-ax.set_xlabel('#ins executed')
-ax.set_ylabel('#addresses')
+    if leak in range(1, 128):
+        ax.annotate(f"{hex(val_lt)}\n`{chr(leak)}'\n",
+                    xy=(row["executed"], row["addr_mem"]),
+                    fontsize=8,
+                    ha='center')
+
+ax.grid(axis='y')
+ax.set_xlabel('$i$')
 ax.legend()
-plt.show()
+plt.subplots_adjust(bottom=0.14, top=0.93)
+plt.savefig(sys.argv[1])
+# plt.show()
