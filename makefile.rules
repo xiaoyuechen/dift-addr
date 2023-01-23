@@ -41,7 +41,7 @@ TOOL_ROOTS := dift-addr
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := a-b-i fibonacci aos sort secwatch-demon
+APP_ROOTS := a-b-i fibonacci aos sort hashset secwatch-demon
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
@@ -88,7 +88,7 @@ all.utest.test: $(UTEST_ROOTS:%=%.utest.test)
 	@$(SET_DLL_PATH) $<
 
 a-b-i.test: $(OBJDIR)a-b-i$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)dift-addr.so -dumpperiod 10000 -- $(OBJDIR)a-b-i$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -dumpperiod 10000 -- $(OBJDIR)a-b-i$(EXE_SUFFIX)
 
 fibonacci.test: $(OBJDIR)fibonacci$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -filter_no_shared_libs -- $(OBJDIR)fibonacci$(EXE_SUFFIX) 1000
@@ -100,7 +100,7 @@ sort.test: $(OBJDIR)sort$(EXE_SUFFIX)
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -filter_no_shared_libs -- $(OBJDIR)sort$(EXE_SUFFIX)
 
 hashset.test: $(OBJDIR)hashset$(EXE_SUFFIX)
-	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -filter_no_shared_libs -o "$@.out" -- $(OBJDIR)hashset$(EXE_SUFFIX)
+	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -filter_no_shared_libs -- $(OBJDIR)hashset$(EXE_SUFFIX)
 
 ls.test:
 	$(PIN) -t $(OBJDIR)dift-addr$(PINTOOL_SUFFIX) -o "$@.out" -dumpperiod 10000 -- ls -tal

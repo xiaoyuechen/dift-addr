@@ -18,25 +18,14 @@
  * along with dift-addr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <algorithm>
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
 #include <unordered_set>
 
-int
-main (int argc, char *argv[])
-{
-  size_t size = 1000;
-  // int *a = (int *)malloc (sizeof (*a) * size);
-  // for (size_t i = 0; i < size; ++i)
-  //   {
-  //     a[i] = size - i - 1;
-  //   }
 
+int
+main ()
+{
+  int A[1024];
   std::unordered_set<int> set;
-  for (size_t i = 0; i < size; ++i)
-    {
-      set.insert (i);
-    }
+  for (int i = 0; i < 1024; ++i)
+    set.insert (A[i]);
 }

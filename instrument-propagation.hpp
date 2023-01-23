@@ -32,8 +32,6 @@ void IPG_SetDumpFile (FILE *file);
 
 void IPG_SetDumpPeriod (size_t every_nins);
 
-void IPG_SetWarmup (size_t nins);
-
 void IPG_SetWatch (bool shouldWatch);
 
 void IPG_SetTrace (bool shouldTrace);

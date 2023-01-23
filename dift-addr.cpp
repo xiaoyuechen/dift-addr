@@ -29,6 +29,8 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <time.h>
+#include <types.h>
 
 #ifndef NUM_TAINT
 #define NUM_TAINT 16
@@ -41,6 +43,9 @@ INSTLIB::FILTER filter;
 FILE *out = stderr;
 FILE *out_img = stderr;
 FILE *out_trace = stderr;
+static UINT64 icount = 0;
+static UINT64 nwarmup = 0;
+static UINT64 nexit = ~UINT64 (0);
 
 KNOB<string> KnobOutputFile (KNOB_MODE_WRITEONCE, "pintool", "o",
                              "dift-addr.out",
@@ -55,9 +60,13 @@ KNOB<string>
                          "dift-addr.trace.out",
                          "The output file name for the trace if -trace is on");
 
-KNOB<size_t> KnobWarmupIns (
-    KNOB_MODE_WRITEONCE, "pintool", "warmup", "0",
-    "Do not dump before WARMUP number of instructions have been executed");
+KNOB<size_t> KnobWarmupIns (KNOB_MODE_WRITEONCE, "pintool", "warmup", "0",
+                            "Do not instrument before WARMUP number of "
+                            "instructions have been executed");
+
+KNOB<INT64>
+    KnobExitIns (KNOB_MODE_WRITEONCE, "pintool", "exit", "-1",
+                 "Exit after EXIT number of instructions have been executed");
 
 KNOB<size_t> KnobDumpPeriod (KNOB_MODE_WRITEONCE, "pintool", "dumpperiod", "1",
                              "Dump every DUMPPERIOD instructions");
@@ -113,16 +122,41 @@ Init (int argc, char *argv[])
                   ? stderr
                   : fopen (KnobOutputTraceFile.Value ().c_str (), "w");
 
+  nwarmup = KnobWarmupIns.Value ();
+  nexit = KnobExitIns.Value () > 0 ? KnobExitIns.Value () : nexit;
+
   filter.Activate ();
 
   IPG_Init ();
   IPG_SetDumpFile (out);
-  IPG_SetWarmup (KnobWarmupIns.Value ());
   IPG_SetWatch (KnobWatchMode.Value ());
   IPG_SetDumpPeriod (KnobDumpPeriod.Value ());
   IPG_SetTrace (KnobTraceMode.Value ());
   IPG_SetTraceFile (out_trace);
   IPG_DumpHeader ();
+}
+
+bool started = false;
+time_t start;
+
+VOID PIN_FAST_ANALYSIS_CALL
+docount (ADDRINT c)
+{
+  icount += c;
+  if (icount > nwarmup && !started)
+    {
+      time (&start);
+      started = true;
+    }
+
+  if (icount > nwarmup && icount - nwarmup > nexit)
+    {
+      time_t end;
+      time (&end);
+      double duration = difftime (end, start);
+      printf ("%lf seconds", duration);
+      PIN_ExitApplication (0);
+    }
 }
 
 void
@@ -133,9 +167,17 @@ Trace (TRACE trace, void *val)
 
   for (BBL bbl = TRACE_BblHead (trace); BBL_Valid (bbl); bbl = BBL_Next (bbl))
     {
-      for (INS ins = BBL_InsHead (bbl); INS_Valid (ins); ins = INS_Next (ins))
+      BBL_InsertCall (bbl, IPOINT_ANYWHERE, AFUNPTR (docount),
+                      IARG_FAST_ANALYSIS_CALL, IARG_UINT32, BBL_NumIns (bbl),
+                      IARG_END);
+
+      if (icount > nwarmup)
         {
-          IPG_InstrumentIns (ins);
+          for (INS ins = BBL_InsHead (bbl); INS_Valid (ins);
+               ins = INS_Next (ins))
+            {
+              IPG_InstrumentIns (ins);
+            }
         }
     }
 }

@@ -58,7 +58,6 @@ struct INS_INFO
 };
 
 static FILE *out = stderr;
-static size_t warmup = 0;
 static size_t period = 1;
 static size_t last_dump_nexecuted = 0;
 static PG_PROPAGATOR *pg;
@@ -275,7 +274,7 @@ OnAddrMark (void *from, void *val, void *)
         {
           DumpDetailedState (&current_ins_info, from, val);
         }
-      else if (nexecuted > warmup && nexecuted - last_dump_nexecuted >= period)
+      else if (nexecuted - last_dump_nexecuted >= period)
         {
           DumpState (&current_ins_info);
           last_dump_nexecuted = nexecuted;
@@ -294,7 +293,7 @@ OnAddrUnmark (void *ea, void *)
         {
           DumpDetailedState (&current_ins_info, ea, nullptr);
         }
-      else if (nexecuted > warmup && nexecuted - last_dump_nexecuted >= period)
+      else if (nexecuted - last_dump_nexecuted >= period)
         {
           DumpState (&current_ins_info);
           last_dump_nexecuted = nexecuted;
@@ -328,12 +327,6 @@ IPG_SetDumpPeriod (size_t every_nins)
 }
 
 void
-IPG_SetWarmup (size_t nins)
-{
-  warmup = nins;
-}
-
-void
 IPG_SetWatch (bool shouldWatch)
 {
   PG_SetWatch (pg, shouldWatch);
@@ -360,9 +353,6 @@ IPG_DumpHeader ()
 void
 IPG_InstrumentIns (INS ins)
 {
-  if (ins_addr.count ((void *)INS_Address (ins)))
-    return;
-
   INS_InsertCall (
       ins, IPOINT_BEFORE, (AFUNPTR)(void (*) ())[] { ++nexecuted; }, IARG_END);
 
