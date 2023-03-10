@@ -1,6 +1,6 @@
 /*
  * dift-addr --- Dynamic Information Flow Tracking on memory ADDResses
- * Copyright (C) 2022  Xiaoyue Chen
+ * Copyright (C) 2022, 2023  Xiaoyue Chen
  *
  * This file is part of dift-addr.
  *
