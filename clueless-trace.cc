@@ -113,10 +113,6 @@ main (int argc, char *argv[])
   });
 
   pp.add_taint_exhausted_hook ([&] (auto taint) { ++taint_exhausted_count; });
-  /* pp.add_taint_exhausted_hook ([&] (auto taint) { */
-  /*   size_t t = taint; */
-  /*   printf ("t %zu\n", t); */
-  /* }); */
 
   auto print_header
       = [] { printf ("ins direct direct+indirect all exhaust\n"); };
@@ -124,6 +120,7 @@ main (int argc, char *argv[])
     printf ("%zu %zu %zu %zu %zu\n", i, directly_leaked.size (),
             directly_leaked.size () + indirectly_leaked.size (), all.size (),
             taint_exhausted_count);
+    fflush (stdout);
   };
 
   for (auto i = size_t{ 0 }; i < knbs.nwarmup; ++i)
