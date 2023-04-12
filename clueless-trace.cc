@@ -115,11 +115,13 @@ main (int argc, char *argv[])
   pp.add_taint_exhausted_hook ([&] (auto taint) { ++taint_exhausted_count; });
 
   auto print_header
-      = [] { printf ("ins direct direct+indirect all exhaust\n"); };
+      = [] { printf ("ins direct indirect gtt all exhaust\n"); };
   auto print_result = [&] (auto i) {
-    printf ("%zu %zu %zu %zu %zu\n", i, directly_leaked.size (),
-            directly_leaked.size () + indirectly_leaked.size (), all.size (),
-            taint_exhausted_count);
+    auto global_taint_tracking = directly_leaked;
+    global_taint_tracking.merge (indirectly_leaked);
+    printf ("%zu %zu %zu %zu %zu %zu\n", i, directly_leaked.size (),
+            indirectly_leaked.size (), global_taint_tracking.size (),
+            all.size (), taint_exhausted_count);
     fflush (stdout);
   };
 

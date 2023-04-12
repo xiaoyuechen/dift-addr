@@ -83,12 +83,14 @@ public:
   constexpr const_reference &
   operator[] (taint t) const
   {
+    assert (t < taint::N);
     return table_[t];
   }
 
   constexpr reference &
   operator[] (taint t)
   {
+    assert (t < taint::N);
     return table_[t];
   }
 
