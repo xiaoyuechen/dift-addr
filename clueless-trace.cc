@@ -25,6 +25,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <numeric>
 #include <unordered_set>
 
 const char *argp_program_version = "clueless-trace 0.1.0";
@@ -88,6 +89,12 @@ parse_opt (int key, char *arg, struct argp_state *state)
 
 static struct argp argp = { option, parse_opt, args_doc, doc };
 
+struct address_version
+{
+  size_t n = 0;
+  bool valid = false;
+};
+
 int
 main (int argc, char *argv[])
 {
@@ -96,32 +103,50 @@ main (int argc, char *argv[])
   argp_parse (&argp, argc, argv, 0, 0, &knbs);
 
   using namespace clueless;
-  using namespace std;
   auto reader = tracereader{ knbs.trace_file };
   auto decoder = chamsim_trace_decoder{};
   auto pp = propagator{};
 
-  auto directly_leaked = unordered_set<unsigned long long>{};
-  auto indirectly_leaked = unordered_set<unsigned long long>{};
-  auto all = unordered_set<unsigned long long>{};
+  auto leaked = std::unordered_map<unsigned long long, address_version>{};
+  auto all = std::unordered_set<unsigned long long>{};
   auto taint_exhausted_count = size_t{ 0 };
 
   pp.add_secret_exposed_hook ([&] (auto param) {
     auto [secret_addr, transmit_addr, access_ip, transmit_ip, depth] = param;
-    auto &set = depth ? indirectly_leaked : directly_leaked;
-    set.insert (secret_addr);
+    auto it = leaked.find (secret_addr);
+    if (it == std::end (leaked))
+      {
+        leaked[secret_addr] = address_version{ 1, true };
+      }
+    else
+      {
+        it->second.valid = true;
+      }
   });
 
   pp.add_taint_exhausted_hook ([&] (auto taint) { ++taint_exhausted_count; });
 
-  auto print_header
-      = [] { printf ("ins direct indirect gtt all exhaust\n"); };
+  auto print_header = [] { printf ("ins gtt all exhaust\n"); };
   auto print_result = [&] (auto i) {
-    auto global_taint_tracking = directly_leaked;
-    global_taint_tracking.merge (indirectly_leaked);
-    printf ("%zu %zu %zu %zu %zu %zu\n", i, directly_leaked.size (),
-            indirectly_leaked.size (), global_taint_tracking.size (),
-            all.size (), taint_exhausted_count);
+    {
+      using namespace std;
+      printf ("%zu %zu %zu %zu\n", i,
+              transform_reduce (
+                  begin (leaked), end (leaked), size_t{ 0 },
+                  [] (auto lhs, auto rhs) { return lhs + rhs; },
+                  [] (auto pair) {
+                    auto version = pair.second;
+                    return version.valid ? version.n : version.n - 1;
+                  }),
+              all.size (), taint_exhausted_count);
+    }
+
+    std::ranges::for_each (leaked, [] (auto pair) {
+      if (pair.second.n > 100000)
+        {
+          printf ("%p\n", (void *)pair.first);
+        }
+    });
     fflush (stdout);
   };
 
@@ -144,8 +169,12 @@ main (int argc, char *argv[])
       pp.propagate (decoded_ins);
       if (decoded_ins.op == propagator::instr::opcode::OP_STORE)
         {
-          directly_leaked.erase (decoded_ins.address);
-          indirectly_leaked.erase (decoded_ins.address);
+          auto it = leaked.find (decoded_ins.address);
+          if (it != std::end (leaked) && it->second.valid)
+            {
+              ++it->second.n;
+              it->second.valid = false;
+            }
           all.insert (decoded_ins.address);
         }
       else if (decoded_ins.op == propagator::instr::opcode::OP_LOAD)
