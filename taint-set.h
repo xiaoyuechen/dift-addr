@@ -36,7 +36,6 @@ public:
   class const_iterator
   {
   public:
-
     using iterator_category = std::forward_iterator_tag;
     using difference_type = ptrdiff_t;
     using value_type = taint;
@@ -125,7 +124,7 @@ public:
   bool
   empty () const
   {
-    return set_.any ();
+    return !set_.any ();
   }
 
   const_iterator

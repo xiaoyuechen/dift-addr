@@ -60,14 +60,9 @@ propagator::reg_to_reg (const instr &ins)
   auto ts = union_reg_taint_sets (ins.src_reg);
 
   /* Union the taint set with each destination register's taint set */
-  for_each (ins.dst_reg, [=, this] (auto reg) { reg_taint_[reg] |= ts; });
-
-  /* Set propagation depth */
-  auto depth_of = [this] (auto reg) { return reg_propagation_depth_[reg]; };
-  auto min_src_propagation_depth
-      = min (ins.src_reg | views::transform (depth_of));
   for_each (ins.dst_reg, [=, this] (auto reg) {
-    reg_propagation_depth_[reg] = min_src_propagation_depth + 1;
+    reg_taint_[reg] |= ts;
+    reg_propagation_indirect_[reg] = !reg_taint_[reg].empty ();
   });
 }
 
@@ -87,7 +82,7 @@ propagator::mem_to_reg (const instr &ins)
 
   /* Reset propagation depth */
   for_each (ins.dst_reg,
-            [=, this] (auto reg) { reg_propagation_depth_[reg] = 0; });
+            [=, this] (auto reg) { reg_propagation_indirect_[reg] = false; });
 
   /* Update taint to pointer table */
   taint_address_[t] = ins.address;
@@ -108,20 +103,22 @@ propagator::handle_mem_taint (const instr &ins)
 
   using namespace std::ranges;
 
+  /* Run pointer found hook */
+  auto run_hook = [&, this] (auto reg) {
+    for_each (reg_taint_[reg], [&, this] (auto t) {
+      secret_exposed_hook_.run (secret_exposed_hook_param{
+          taint_address_[t], ins.address, taint_ip_[t], ins.ip,
+          reg_propagation_indirect_[reg] });
+    });
+  };
+
+  for_each (ins.mem_reg, run_hook);
+
   /* Union all memory operands' taint sets */
   auto ts = union_reg_taint_sets (ins.mem_reg);
 
   /* Free every taint in the taint set */
   for_each (ts, [this] (auto t) { free_taint (t); });
-
-  /* Run pointer found hook */
-  auto depth_of = [this] (auto reg) { return reg_propagation_depth_[reg]; };
-  auto propagation_depth = min (ins.mem_reg | views::transform (depth_of));
-  auto run_hook = [=, this] (auto t) {
-    secret_exposed_hook_.run ({ taint_address_[t], ins.address, taint_ip_[t],
-                                ins.ip, propagation_depth });
-  };
-  for_each (ts, run_hook);
 }
 
 taint_set
