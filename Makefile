@@ -11,7 +11,7 @@ CXXFLAGS= -g -O3 -std=c++20 -Wall -fno-exceptions
 
 all: $(PROGS)
 
-%: %.o $(COMMON_OBJS)
+$(PROGS): %: %.o $(COMMON_OBJS)
 	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 %.o: %.cc
