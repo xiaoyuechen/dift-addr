@@ -23,25 +23,17 @@
 
 #include "propagator.h"
 #include "trace-instruction.h"
-#include <algorithm>
 
 namespace clueless
 {
 
-class chamsim_trace_decoder
+class champsim_trace_decoder
 {
 public:
   const propagator::instr &decode (const input_instr &input);
 
 private:
-  void
-  reset ()
-  {
-    using namespace std;
-    auto reg_sets = { &ins_.src_reg, &ins_.dst_reg, &ins_.mem_reg };
-    for_each (begin (reg_sets), end (reg_sets),
-              [] (auto reg_set) { reg_set->clear (); });
-  }
+  void reset ();
 
   propagator::instr ins_;
 };

@@ -97,7 +97,7 @@ main (int argc, char *argv[])
 
   using namespace clueless;
   auto reader = tracereader{ knbs.trace_file };
-  auto decoder = chamsim_trace_decoder{};
+  auto decoder = champsim_trace_decoder{};
   auto pp = propagator{};
 
   auto directly_leaked = std::unordered_set<unsigned long long>{};

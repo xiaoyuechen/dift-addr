@@ -20,6 +20,10 @@
 
 #include "champsim-trace-decoder.h"
 
+#include <algorithm>
+#include <functional>
+#include <ranges>
+
 namespace clueless
 {
 
@@ -27,16 +31,12 @@ static constexpr unsigned char REG_STACK_POINTER = 6;
 static constexpr unsigned char REG_FLAGS = 25;
 static constexpr unsigned char REG_INSTRUCTION_POINTER = 26;
 
-static auto count_non_zero = [] (auto begin, auto end) {
-  return std::count_if (begin, end, [] (auto test) { return test; });
-};
-
 static auto reg_pred = [] (auto reg) {
   return reg && reg != REG_FLAGS && reg != REG_INSTRUCTION_POINTER;
 };
 
 const propagator::instr &
-chamsim_trace_decoder::decode (const input_instr &input)
+champsim_trace_decoder::decode (const input_instr &input)
 {
   using namespace std::ranges;
 
@@ -66,17 +66,16 @@ chamsim_trace_decoder::decode (const input_instr &input)
     {
       ins_.op = propagator::instr::opcode::OP_LOAD;
 
-      copy_if (begin (input.source_registers), end (input.source_registers),
-               back_inserter (ins_.mem_reg), [=] (auto reg) {
-                 return reg_pred (reg)
-                        && find (begin (input.destination_registers),
-                                 end (input.destination_registers), reg)
-                               == end (input.destination_registers);
-               });
+      copy (input.source_registers | views::filter ([=] (auto reg) {
+              return reg_pred (reg)
+                     && find (begin (input.destination_registers),
+                              end (input.destination_registers), reg)
+                            == end (input.destination_registers);
+            }),
+            back_inserter (ins_.mem_reg));
 
-      copy_if (begin (input.destination_registers),
-               end (input.destination_registers), back_inserter (ins_.dst_reg),
-               reg_pred);
+      copy (input.destination_registers | views::filter (reg_pred),
+            back_inserter (ins_.dst_reg));
 
       ins_.address = src_mem;
     }
@@ -85,8 +84,7 @@ chamsim_trace_decoder::decode (const input_instr &input)
       ins_.op = propagator::instr::opcode::OP_STORE;
 
       /* push or call */
-      if (count_non_zero (begin (input.destination_registers),
-                          end (input.destination_registers)))
+      if (any_of (input.destination_registers, std::identity{}))
         {
           ins_.mem_reg.push_back (REG_STACK_POINTER);
         }
@@ -109,6 +107,14 @@ chamsim_trace_decoder::decode (const input_instr &input)
     }
 
   return ins_;
+}
+
+void
+champsim_trace_decoder::reset ()
+{
+  using namespace std::ranges;
+  auto reg_sets = { &ins_.src_reg, &ins_.dst_reg, &ins_.mem_reg };
+  for_each (reg_sets, [] (auto reg_set) { reg_set->clear (); });
 }
 
 }
