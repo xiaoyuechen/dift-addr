@@ -27,11 +27,10 @@
 #include <cstdlib>
 #include <unordered_set>
 
-const char *argp_program_version = "clueless-trace 0.1.0";
+const char *argp_program_version = "direct-indirect 0.1.0";
 const char *argp_program_bug_address = "<xiaoyue.chen@it.uu.se>";
 
-static char doc[]
-    = "Characterises vaLUEs Leaking as addrESSes in an execution TRACE";
+static char doc[] = "Classify addresses that leaks directly and indirectly";
 
 static char args_doc[] = "TRACE";
 
@@ -103,7 +102,6 @@ main (int argc, char *argv[])
   auto directly_leaked = std::unordered_set<unsigned long long>{};
   auto indirectly_leaked = std::unordered_set<unsigned long long>{};
   auto all = std::unordered_set<unsigned long long>{};
-  auto taint_exhausted_count = size_t{ 0 };
   auto hit_on_directly_leaked = size_t{ 0 };
 
   pp.add_secret_exposed_hook ([&] (auto param) {
@@ -113,18 +111,16 @@ main (int argc, char *argv[])
     set.insert (secret_addr);
   });
 
-  pp.add_taint_exhausted_hook ([&] (auto taint) { ++taint_exhausted_count; });
-
   auto print_header
-      = [] { printf ("ins direct indirect gtt all hit-direct exhaust\n"); };
+      = [] { printf ("ins direct indirect gtt all hit-direct\n"); };
   auto print_result = [&] (auto i) {
     auto global_taint_tracking = directly_leaked;
     std::ranges::for_each (indirectly_leaked, [&] (auto pair) {
       global_taint_tracking.insert (pair);
     });
-    printf ("%zu %zu %zu %zu %zu %zu %zu\n", i, directly_leaked.size (),
+    printf ("%zu %zu %zu %zu %zu %zu\n", i, directly_leaked.size (),
             indirectly_leaked.size (), global_taint_tracking.size (),
-            all.size (), hit_on_directly_leaked, taint_exhausted_count);
+            all.size (), hit_on_directly_leaked);
     fflush (stdout);
   };
 
