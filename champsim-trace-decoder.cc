@@ -21,6 +21,7 @@
 #include "champsim-trace-decoder.h"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <ranges>
 
@@ -68,9 +69,7 @@ champsim_trace_decoder::decode (const input_instr &input)
 
       copy (input.source_registers | views::filter ([=] (auto reg) {
               return reg_pred (reg)
-                     && find (begin (input.destination_registers),
-                              end (input.destination_registers), reg)
-                            == end (input.destination_registers);
+                     && !count (input.destination_registers, reg);
             }),
             back_inserter (ins_.mem_reg));
 
@@ -90,9 +89,10 @@ champsim_trace_decoder::decode (const input_instr &input)
         }
       else
         {
-          copy_if (begin (input.source_registers),
-                   rbegin (input.source_registers).base (),
-                   back_inserter (ins_.mem_reg), reg_pred);
+          copy (subrange (begin (input.source_registers),
+                          rbegin (input.source_registers).base ())
+                    | views::filter (reg_pred),
+                back_inserter (ins_.mem_reg));
         }
 
       ins_.address = dst_mem;
@@ -113,7 +113,7 @@ void
 champsim_trace_decoder::reset ()
 {
   using namespace std::ranges;
-  auto reg_sets = { &ins_.src_reg, &ins_.dst_reg, &ins_.mem_reg };
+  auto reg_sets = std::array{ &ins_.src_reg, &ins_.dst_reg, &ins_.mem_reg };
   for_each (reg_sets, [] (auto reg_set) { reg_set->clear (); });
 }
 
