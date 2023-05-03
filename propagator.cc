@@ -62,7 +62,7 @@ propagator::reg_to_reg (const instr &ins)
   /* Union the taint set with each destination register's taint set */
   for_each (ins.dst_reg, [=, this] (auto reg) {
     reg_taint_[reg] |= ts;
-    reg_propagation_indirect_[reg] = !reg_taint_[reg].empty ();
+    reg_propagation_direct_[reg] = reg_taint_[reg].empty ();
   });
 }
 
@@ -82,7 +82,7 @@ propagator::mem_to_reg (const instr &ins)
 
   /* Reset propagation depth */
   for_each (ins.dst_reg,
-            [=, this] (auto reg) { reg_propagation_indirect_[reg] = false; });
+            [=, this] (auto reg) { reg_propagation_direct_[reg] = true; });
 
   /* Update taint to pointer table */
   taint_address_[t] = ins.address;
@@ -108,7 +108,7 @@ propagator::handle_mem_taint (const instr &ins)
     for_each (reg_taint_[reg], [&, this] (auto t) {
       secret_exposed_hook_.run (secret_exposed_hook_param{
           taint_address_[t], ins.address, taint_ip_[t], ins.ip,
-          reg_propagation_indirect_[reg] });
+          reg_propagation_direct_[reg] });
     });
   };
 

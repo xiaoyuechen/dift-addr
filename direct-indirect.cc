@@ -105,9 +105,8 @@ main (int argc, char *argv[])
   auto hit_on_directly_leaked = size_t{ 0 };
 
   pp.add_secret_exposed_hook ([&] (auto param) {
-    auto [secret_addr, transmit_addr, access_ip, transmit_ip, indirect]
-        = param;
-    auto &set = indirect ? indirectly_leaked : directly_leaked;
+    auto [secret_addr, transmit_addr, access_ip, transmit_ip, direct] = param;
+    auto &set = direct ? directly_leaked : indirectly_leaked;
     set.insert (secret_addr);
   });
 
