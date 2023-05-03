@@ -1,4 +1,4 @@
-PROGS = direct-indirect
+PROGS = direct-indirect reuse-distance
 SRCS = $(wildcard *.cc)
 OBJS = $(SRCS:.cc=.o)
 MAIN_OBJS = $(addsuffix .o, $(PROGS))
