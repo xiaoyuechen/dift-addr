@@ -91,7 +91,8 @@ static struct argp argp = { option, parse_opt, args_doc, doc };
 
 struct reuse_distance_sampler
 {
-  explicit reuse_distance_sampler (size_t timestamp) : timestamp (timestamp)
+  explicit reuse_distance_sampler (size_t timestamp)
+      : timestamp (timestamp), naccess (1)
   {
     using namespace std::ranges;
     fill (distance_set, std::numeric_limits<size_t>::max ());
@@ -101,6 +102,7 @@ struct reuse_distance_sampler
 
   std::array<size_t, NSAMPLE> distance_set;
   size_t timestamp;
+  size_t naccess;
 };
 
 int
@@ -152,16 +154,17 @@ main (int argc, char *argv[])
                 auto &sampler = it->second;
                 auto max_dist_it = max_element (sampler.distance_set);
                 auto dist = reuse_distance_clk - sampler.timestamp;
-                sampler.timestamp = reuse_distance_clk;
                 if (dist < *max_dist_it)
                   {
                     *max_dist_it = dist;
                   }
+                sampler.timestamp = reuse_distance_clk;
+                ++sampler.naccess;
               }
           }
       });
 
-  std::cout << "address reuse-distance" << std::endl;
+  std::cout << "address reuse-distance naccess" << std::endl;
 
   copy (reuse_distance | views::transform ([] (const auto &pair) {
           const auto &[address, sampler] = pair;
@@ -173,7 +176,7 @@ main (int argc, char *argv[])
             }
           std::ostringstream oss;
           oss << (void *)address << " " << std::fixed << std::setprecision (2)
-              << mean;
+              << mean << " " << sampler.naccess;
           return oss.str ();
         }),
         std::ostream_iterator<std::string> (std::cout, "\n"));
