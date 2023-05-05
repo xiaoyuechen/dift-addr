@@ -31,6 +31,7 @@
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -92,11 +93,12 @@ static struct argp argp = { option, parse_opt, args_doc, doc };
 
 struct reuse_distance_sampler
 {
-  explicit reuse_distance_sampler (size_t timestamp)
+  explicit reuse_distance_sampler (size_t timestamp, unsigned long long ip)
       : timestamp (timestamp), naccess (1)
   {
     using namespace std::ranges;
     fill (distance_set, std::numeric_limits<size_t>::max ());
+    ip_set.emplace (ip);
   }
 
   static constexpr size_t NSAMPLE = 10;
@@ -104,6 +106,7 @@ struct reuse_distance_sampler
   std::array<size_t, NSAMPLE> distance_set;
   size_t timestamp;
   size_t naccess;
+  std::set<unsigned long long> ip_set;
 };
 
 std::ostream &
@@ -125,7 +128,7 @@ operator<< (std::ostream &os, const reuse_distance_sampler &sampler)
   auto sd = sqrt (variance);
   using namespace std::ranges;
   os << mean << " " << min (distance_set) << " " << max (distance_set) << " "
-     << sd << " " << sampler.naccess;
+     << sd << " " << sampler.ip_set.size () << " " << sampler.naccess;
   return os;
 }
 
@@ -161,9 +164,9 @@ main (int argc, char *argv[])
 
   auto init_address_reuse_distance = [&] (auto param) {
     auto [secret_addr, transmit_addr, access_ip, transmit_ip, direct] = param;
-    reuse_distance.emplace (
-        std::make_pair (block_address_of (secret_addr),
-                        reuse_distance_sampler{ reuse_distance_clk }));
+    reuse_distance.emplace (std::make_pair (
+        block_address_of (secret_addr),
+        reuse_distance_sampler{ reuse_distance_clk, access_ip }));
   };
 
   pp.add_secret_exposed_hook (init_address_reuse_distance);
@@ -184,6 +187,7 @@ main (int argc, char *argv[])
                 it != reuse_distance.end ())
               {
                 auto &sampler = it->second;
+                sampler.ip_set.emplace (decoded_ins.ip);
                 auto max_dist_it = max_element (sampler.distance_set);
                 auto dist = reuse_distance_clk - sampler.timestamp - 1;
                 if (dist < *max_dist_it)
@@ -196,7 +200,7 @@ main (int argc, char *argv[])
           }
       });
 
-  std::cout << "address mean min max sd naccess" << std::endl;
+  std::cout << "address mean min max sd nip naccess" << std::endl;
   std::cout << std::fixed << std::setprecision (2);
   auto cout_it = std::ostream_iterator<
       std::pair<void *, const reuse_distance_sampler &> > (std::cout, "\n");
