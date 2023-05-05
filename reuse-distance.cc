@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <argp.h>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <iomanip>
@@ -105,6 +106,37 @@ struct reuse_distance_sampler
   size_t naccess;
 };
 
+std::ostream &
+operator<< (std::ostream &os, const reuse_distance_sampler &sampler)
+{
+  const auto &distance_set = sampler.distance_set;
+  auto mean = 0.0;
+  for (auto dist : distance_set)
+    {
+      mean += dist / (double)distance_set.size ();
+    }
+
+  auto ssq = 0.0;
+  for (auto dist : distance_set)
+    {
+      ssq += (dist - mean) * (dist - mean);
+    }
+  auto variance = ssq / distance_set.size ();
+  auto sd = sqrt (variance);
+  using namespace std::ranges;
+  os << mean << " " << min (distance_set) << " " << max (distance_set) << " "
+     << sd << " " << sampler.naccess;
+  return os;
+}
+
+std::ostream &
+operator<< (std::ostream &os,
+            const std::pair<void *, const reuse_distance_sampler &> &pair)
+{
+  os << pair.first << " " << pair.second;
+  return os;
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -153,7 +185,7 @@ main (int argc, char *argv[])
               {
                 auto &sampler = it->second;
                 auto max_dist_it = max_element (sampler.distance_set);
-                auto dist = reuse_distance_clk - sampler.timestamp;
+                auto dist = reuse_distance_clk - sampler.timestamp - 1;
                 if (dist < *max_dist_it)
                   {
                     *max_dist_it = dist;
@@ -164,20 +196,14 @@ main (int argc, char *argv[])
           }
       });
 
-  std::cout << "address reuse-distance naccess" << std::endl;
+  std::cout << "address mean min max sd naccess" << std::endl;
+  std::cout << std::fixed << std::setprecision (2);
+  auto cout_it = std::ostream_iterator<
+      std::pair<void *, const reuse_distance_sampler &> > (std::cout, "\n");
 
   copy (reuse_distance | views::transform ([] (const auto &pair) {
           const auto &[address, sampler] = pair;
-          const auto &distance_set = sampler.distance_set;
-          auto mean = 0.0;
-          for (auto dist : distance_set)
-            {
-              mean += dist / (double)distance_set.size ();
-            }
-          std::ostringstream oss;
-          oss << (void *)address << " " << std::fixed << std::setprecision (2)
-              << mean << " " << sampler.naccess;
-          return oss.str ();
+          return std::make_pair ((void *)address, std::cref (sampler));
         }),
-        std::ostream_iterator<std::string> (std::cout, "\n"));
+        cout_it);
 }
