@@ -22,3 +22,8 @@ $(PROGS): %: %.o $(COMMON_OBJS)
 .PHONY: clean
 clean:
 	rm -f $(OBJS) $(DEPS) $(PROGS)
+
+.PHONY: install
+install:
+	mkdir -p $(PREFIX)/bin
+	install -t $(PREFIX)/bin $(PROGS)
