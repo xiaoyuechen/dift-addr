@@ -43,7 +43,8 @@ champsim_trace_decoder::decode (const input_instr &input)
 
   reset ();
 
-  auto ins = propagator::instr{ .ip = input.ip };
+  ins_.ip = input.ip;
+
   if (input.is_branch)
     {
       ins_.op = propagator::instr::opcode::OP_BRANCH;
@@ -103,7 +104,7 @@ champsim_trace_decoder::decode (const input_instr &input)
    */
   else
     {
-      ins_.op = propagator::instr::opcode::OP_BRANCH;
+      ins_.op = propagator::instr::opcode::OP_NOP;
     }
 
   return ins_;

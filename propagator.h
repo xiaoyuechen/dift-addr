@@ -43,10 +43,12 @@ public:
       OP_REG,
       OP_LOAD,
       OP_STORE,
-      OP_BRANCH
+      OP_BRANCH,
+      OP_NOP,
     } op;
 
     unsigned long long ip;
+    unsigned long long seq;
 
     reg_set src_reg;
     reg_set dst_reg;

@@ -19,6 +19,7 @@
  */
 
 #include "propagator.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <limits>
@@ -43,6 +44,7 @@ propagator::propagate (const instr &ins)
       reg_to_mem (ins);
       break;
     case instr::opcode::OP_BRANCH:
+    case instr::opcode::OP_NOP:
     default:
       break;
     }

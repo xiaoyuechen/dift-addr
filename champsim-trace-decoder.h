@@ -35,7 +35,8 @@ public:
 private:
   void reset ();
 
-  propagator::instr ins_;
+  propagator::instr ins_ = {};
+  unsigned long long i_ = {};
 };
 
 }
