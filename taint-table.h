@@ -35,9 +35,9 @@ namespace clueless
 
 class reg_taint_table
 {
+public:
   static constexpr size_t NREG = 256;
 
-public:
   using value_type = taint_set;
   using reference = taint_set &;
   using const_reference = const value_type &;

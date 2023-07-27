@@ -61,7 +61,7 @@ public:
   {
     unsigned long long secret_address, transmit_address, access_ip,
         transmit_ip;
-    bool is_direct;
+    size_t propagation_level;
   };
 
   using secret_exposed_hook = hook<secret_exposed_hook_param>;
@@ -99,8 +99,9 @@ private:
   taint_address_table taint_ip_ = {};
   secret_exposed_hook secret_exposed_hook_ = {};
   taint_exhausted_hook taint_exhausted_hook_ = {};
-  using reg_propagation_direct_table = std::array<bool, 256>;
-  reg_propagation_direct_table reg_propagation_direct_ = {};
+  using reg_propagation_level_table
+      = std::array<size_t, reg_taint_table::NREG>;
+  reg_propagation_level_table reg_propagation_level_ = {};
 };
 
 }

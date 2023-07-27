@@ -58,13 +58,9 @@ propagator::reg_to_reg (const instr &ins)
 
   using namespace std::ranges;
 
-  /* Union all source registers' taint sets */
-  auto ts = union_reg_taint_sets (ins.src_reg);
-
-  /* Union the taint set with each destination register's taint set */
   for_each (ins.dst_reg, [=, this] (auto reg) {
-    reg_taint_[reg] |= ts;
-    reg_propagation_direct_[reg] = reg_taint_[reg].empty ();
+    reg_taint_[reg] = union_reg_taint_sets (ins.src_reg);
+    reg_propagation_level_[reg] = !reg_taint_[reg].empty ();
   });
 }
 
@@ -84,7 +80,7 @@ propagator::mem_to_reg (const instr &ins)
 
   /* Reset propagation depth */
   for_each (ins.dst_reg,
-            [=, this] (auto reg) { reg_propagation_direct_[reg] = true; });
+            [=, this] (auto reg) { reg_propagation_level_[reg] = 0; });
 
   /* Update taint to pointer table */
   taint_address_[t] = ins.address;
@@ -110,7 +106,7 @@ propagator::handle_mem_taint (const instr &ins)
     for_each (reg_taint_[reg], [&, this] (auto t) {
       secret_exposed_hook_.run (secret_exposed_hook_param{
           taint_address_[t], ins.address, taint_ip_[t], ins.ip,
-          reg_propagation_direct_[reg] });
+          reg_propagation_level_[reg] });
     });
   };
 
