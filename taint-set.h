@@ -23,9 +23,11 @@
 
 #include "taint.h"
 
+#include <algorithm>
 #include <bitset>
 #include <cstddef>
 #include <iterator>
+#include <ranges>
 
 namespace clueless
 {
@@ -69,15 +71,11 @@ public:
     const_iterator &
     operator++ ()
     {
-      for (size_t i = ++taint_.i_; i < taint::N; ++i)
-        {
-          if (taint_set_->set_.test (i))
-            {
-              taint_.i_ = i;
-              return *this;
-            }
-        }
-      taint_.i_ = taint::N;
+      using namespace std::ranges;
+      auto range = views::iota (taint_ + 1, taint::N);
+      auto found = find_if (
+          range, [this] (auto i) { return taint_set_->set_.test (i); });
+      taint_ = found == range.end () ? taint (taint::N) : taint (*found);
       return *this;
     }
 
@@ -104,21 +102,21 @@ public:
   taint_set &
   add (taint t)
   {
-    set_.set (t.i_);
+    set_.set (t);
     return *this;
   }
 
   taint_set &
   remove (taint t)
   {
-    set_.reset (t.i_);
+    set_.reset (t);
     return *this;
   }
 
   bool
   test (taint t) const
   {
-    return set_.test (t.i_);
+    return set_.test (t);
   }
 
   bool

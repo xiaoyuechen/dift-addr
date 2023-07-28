@@ -34,6 +34,12 @@ public:
 
   taint () = default;
 
+  explicit constexpr
+  taint (size_t i)
+      : i_ (i)
+  {
+  }
+
   constexpr bool
   operator== (taint other) const
   {
@@ -49,16 +55,7 @@ public:
   constexpr operator size_t () const { return i_; }
 
 private:
-  explicit constexpr
-  taint (size_t i)
-      : i_ (i)
-  {
-  }
-
   size_t i_ = 0;
-
-  friend class taint_set;
-  friend class taint_queue;
 };
 
 }

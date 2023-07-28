@@ -56,10 +56,13 @@ propagator::reg_to_reg (const instr &ins)
   if (!(ins.src_reg.size () && ins.dst_reg.size ()))
     return;
 
+  /* Union all source registers' taint sets */
+  auto ts = union_reg_taint_sets (ins.src_reg);
+
   using namespace std::ranges;
 
   for_each (ins.dst_reg, [=, this] (auto reg) {
-    reg_taint_[reg] = union_reg_taint_sets (ins.src_reg);
+    reg_taint_[reg] = ts;
     reg_propagation_level_[reg] = !reg_taint_[reg].empty ();
   });
 }
