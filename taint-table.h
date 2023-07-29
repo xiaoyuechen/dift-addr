@@ -97,6 +97,7 @@ public:
 private:
   std::array<value_type, taint::N> table_;
 };
+
 }
 
 #endif

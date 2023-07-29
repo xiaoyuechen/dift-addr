@@ -22,7 +22,7 @@
 #define PROPAGATOR_H
 
 #include "hook.h"
-#include "taint-queue.h"
+#include "taint-allocator.h"
 #include "taint-table.h"
 #include <array>
 #include <functional>
@@ -66,20 +66,12 @@ public:
 
   using secret_exposed_hook = hook<secret_exposed_hook_param>;
 
-  using taint_exhausted_hook = hook<taint>;
-
   void propagate (const instr &ins);
 
   void
   add_secret_exposed_hook (secret_exposed_hook::function f)
   {
     secret_exposed_hook_.add (f);
-  }
-
-  void
-  add_taint_exhausted_hook (taint_exhausted_hook::function f)
-  {
-    taint_exhausted_hook_.add (f);
   }
 
 private:
@@ -91,14 +83,12 @@ private:
   taint_set union_reg_taint_sets (const auto &reg_set) const;
 
   taint alloc_taint ();
-  void free_taint (taint t);
 
-  taint_queue taint_queue_ = {};
+  fifo_taint_allocator taint_allocator_;
   reg_taint_table reg_taint_ = {};
   taint_address_table taint_address_ = {};
   taint_address_table taint_ip_ = {};
   secret_exposed_hook secret_exposed_hook_ = {};
-  taint_exhausted_hook taint_exhausted_hook_ = {};
   using reg_propagation_level_table
       = std::array<size_t, reg_taint_table::NREG>;
   reg_propagation_level_table reg_propagation_level_ = {};

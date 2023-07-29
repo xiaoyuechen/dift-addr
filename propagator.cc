@@ -114,12 +114,6 @@ propagator::handle_mem_taint (const instr &ins)
   };
 
   for_each (ins.mem_reg, run_hook);
-
-  /* Union all memory operands' taint sets */
-  auto ts = union_reg_taint_sets (ins.mem_reg);
-
-  /* Free every taint in the taint set */
-  for_each (ts, [this] (auto t) { free_taint (t); });
 }
 
 taint_set
@@ -136,24 +130,9 @@ taint
 propagator::alloc_taint ()
 {
   using namespace std::ranges;
-  auto found = find_if (rbegin (taint_queue_), rend (taint_queue_),
-                        [=, this] (auto t) { return !reg_taint_.count (t); });
-  auto t_rit = found;
-  if (found == rend (taint_queue_))
-    {
-      t_rit = taint_queue_.rbegin ();
-      free_taint (*t_rit);
-      taint_exhausted_hook_.run (*t_rit);
-    }
-
-  taint_queue_.move_to_front (next (t_rit).base ());
-  return *t_rit;
-}
-
-void
-propagator::free_taint (taint t)
-{
+  auto t = taint_allocator_.alloc ();
   reg_taint_.remove_all (t);
+  return t;
 }
 
 }
