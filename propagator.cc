@@ -21,6 +21,7 @@
 #include "propagator.h"
 
 #include <algorithm>
+#include <bits/ranges_algo.h>
 #include <cstdio>
 #include <limits>
 #include <numeric>
@@ -59,12 +60,20 @@ propagator::reg_to_reg (const instr &ins)
   /* Union all source registers' taint sets */
   auto ts = union_reg_taint_sets (ins.src_reg);
 
-  using namespace std::ranges;
+  for (auto dst_reg : ins.dst_reg)
+    {
+      for (auto src_reg : ins.src_reg)
+        {
+          for (auto t : reg_taint_[src_reg])
+            {
+              propagation_level_[dst_reg][t]
+                  = propagation_level_[src_reg][t] + 1;
+            }
+        }
+    }
 
-  for_each (ins.dst_reg, [=, this] (auto reg) {
-    reg_taint_[reg] = ts;
-    reg_propagation_level_[reg] = !reg_taint_[reg].empty ();
-  });
+  using namespace std::ranges;
+  for_each (ins.dst_reg, [=, this] (auto reg) { reg_taint_[reg] = ts; });
 }
 
 void
@@ -82,8 +91,9 @@ propagator::mem_to_reg (const instr &ins)
   for_each (ins.dst_reg, [=, this] (auto reg) { reg_taint_[reg].add (t); });
 
   /* Reset propagation depth */
-  for_each (ins.dst_reg,
-            [=, this] (auto reg) { reg_propagation_level_[reg] = 0; });
+  for_each (ins.dst_reg, [=, this] (auto reg) {
+    for_each (propagation_level_[reg], [] (auto &lvl) { lvl = 0; });
+  });
 
   /* Update taint to pointer table */
   taint_address_[t] = ins.address;
@@ -105,15 +115,21 @@ propagator::handle_mem_taint (const instr &ins)
   using namespace std::ranges;
 
   /* Run pointer found hook */
-  auto run_hook = [&, this] (auto reg) {
-    for_each (reg_taint_[reg], [&, this] (auto t) {
-      secret_exposed_hook_.run (secret_exposed_hook_param{
-          taint_address_[t], ins.address, taint_ip_[t], ins.ip,
-          reg_propagation_level_[reg] });
-    });
-  };
+  auto exposed_secret = std::vector<secret_exposed_hook_param::secret>{};
+  for (auto reg : ins.mem_reg)
+    {
+      for (auto t : reg_taint_[reg])
+        {
+          exposed_secret.emplace_back (secret_exposed_hook_param::secret{
+              taint_address_[t], taint_ip_[t], propagation_level_[reg][t] });
+        }
+    }
 
-  for_each (ins.mem_reg, run_hook);
+  if (!exposed_secret.size ())
+    return;
+
+  secret_exposed_hook_.run (secret_exposed_hook_param{
+      std::move (exposed_secret), ins.address, ins.ip });
 }
 
 taint_set
@@ -134,5 +150,4 @@ propagator::alloc_taint ()
   reg_taint_.remove_all (t);
   return t;
 }
-
 }

@@ -14,7 +14,12 @@
       packages.x86_64-linux.default = self.packages.x86_64-linux.clueless-trace;
 
       devShells.x86_64-linux.default = mkShell {
-        packages = [ clang-tools gdb ];
+        packages = [
+          clang-tools
+          gdb
+          haskell-language-server
+          (haskellPackages.ghcWithPackages (pkgs: [ pkgs.regex-tdfa ]))
+        ];
       };
     };
 }

@@ -59,9 +59,15 @@ public:
 
   struct secret_exposed_hook_param
   {
-    unsigned long long secret_address, transmit_address, access_ip,
-        transmit_ip;
-    size_t propagation_level;
+    struct secret
+    {
+      unsigned long long secret_address;
+      unsigned long long access_ip;
+      size_t propagation_level;
+    };
+
+    std::vector<secret> exposed_secret;
+    unsigned long long transmit_address, transmit_ip;
   };
 
   using secret_exposed_hook = hook<secret_exposed_hook_param>;
@@ -89,9 +95,9 @@ private:
   taint_address_table taint_address_ = {};
   taint_address_table taint_ip_ = {};
   secret_exposed_hook secret_exposed_hook_ = {};
-  using reg_propagation_level_table
-      = std::array<size_t, reg_taint_table::NREG>;
-  reg_propagation_level_table reg_propagation_level_ = {};
+  using propagation_level_table
+      = std::array<std::array<size_t, taint::N>, reg_taint_table::NREG>;
+  propagation_level_table propagation_level_ = {};
 };
 
 }

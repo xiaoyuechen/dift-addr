@@ -23,14 +23,15 @@
 #include "tracereader.h"
 #include <argp.h>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdlib>
 #include <unordered_set>
 
-const char *argp_program_version = "direct-indirect 0.1.0";
-const char *argp_program_bug_address = "<xiaoyue.chen@it.uu.se>";
+const char *argp_program_version = "how-address 0.1.0";
+const char *argp_program_bug_address = "<xchen@vvvu.org>";
 
-static char doc[] = "Classify addresses that leaks directly and indirectly";
+static char doc[] = "How memory addresses are made";
 
 static char args_doc[] = "TRACE";
 
@@ -99,29 +100,57 @@ main (int argc, char *argv[])
   auto decoder = champsim_trace_decoder{};
   auto pp = propagator{};
 
-  auto directly_leaked = std::unordered_set<unsigned long long>{};
-  auto indirectly_leaked = std::unordered_set<unsigned long long>{};
+  auto level_leaked = std::array<std::unordered_set<unsigned long long>, 4>{};
+  auto num_taint = std::array<std::unordered_set<unsigned long long>, 4>{};
   auto all = std::unordered_set<unsigned long long>{};
-  auto hit_on_directly_leaked = size_t{ 0 };
 
   pp.add_secret_exposed_hook ([&] (auto param) {
-    auto [secret_addr, transmit_addr, access_ip, transmit_ip,
-          propagation_level]
-        = param;
-    auto &set = !propagation_level ? directly_leaked : indirectly_leaked;
-    set.insert (secret_addr);
+    auto &&[exposed_secret, transmit_addr, transmit_ip] = param;
+
+    using namespace std::ranges;
+
+    auto propagation_level = min (exposed_secret, {},
+                                  &propagator::secret_exposed_hook_param::
+                                      secret::propagation_level)
+                                 .propagation_level;
+    auto &lvl_set = propagation_level < level_leaked.size () - 1
+                        ? level_leaked[propagation_level]
+                        : *level_leaked.rbegin ();
+
+    auto &num_taint_set = exposed_secret.size () < num_taint.size () - 1
+                              ? num_taint[exposed_secret.size () - 1]
+                              : *num_taint.rbegin ();
+    num_taint_set.insert (transmit_addr);
+
+    for (auto &sec : exposed_secret)
+      {
+        if (find_if (
+                level_leaked,
+                [=] (auto &set) { return set.contains (sec.secret_address); })
+            != end (level_leaked))
+          {
+            continue;
+          }
+        lvl_set.insert (sec.secret_address);
+      }
   });
 
   auto print_header
-      = [] { printf ("ins direct indirect gtt all hit-direct\n"); };
+      = [] { printf ("ins lvl0 lvl1 lvl2 lvl3+ t1 t2 t3 t4+ gtt all\n"); };
   auto print_result = [&] (auto i) {
-    auto global_taint_tracking = directly_leaked;
-    std::ranges::for_each (indirectly_leaked, [&] (auto pair) {
-      global_taint_tracking.insert (pair);
+    auto global_taint_tracking = std::unordered_set<unsigned long long>{};
+    using namespace std::ranges;
+    for_each (level_leaked, [&] (const auto &set) {
+      for_each (set, [&] (auto pair) { global_taint_tracking.insert (pair); });
     });
-    printf ("%zu %zu %zu %zu %zu %zu\n", i, directly_leaked.size (),
-            indirectly_leaked.size (), global_taint_tracking.size (),
-            all.size (), hit_on_directly_leaked);
+    printf ("%zu ", i);
+    for (auto &set : level_leaked)
+      printf ("%zu ", set.size ());
+    for (auto &set : num_taint)
+      printf ("%zu ", set.size ());
+    printf ("%zu ", global_taint_tracking.size ());
+    printf ("%zu", all.size ());
+    printf ("\n");
     fflush (stdout);
   };
 
@@ -144,17 +173,11 @@ main (int argc, char *argv[])
       pp.propagate (decoded_ins);
       if (decoded_ins.op == propagator::instr::opcode::OP_STORE)
         {
-          directly_leaked.erase (decoded_ins.address);
-          indirectly_leaked.erase (decoded_ins.address);
           all.insert (decoded_ins.address);
         }
       else if (decoded_ins.op == propagator::instr::opcode::OP_LOAD)
         {
           all.insert (decoded_ins.address);
-          if (directly_leaked.contains (decoded_ins.address))
-            {
-              ++hit_on_directly_leaked;
-            }
         }
     }
 

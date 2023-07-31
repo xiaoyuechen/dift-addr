@@ -163,10 +163,14 @@ main (int argc, char *argv[])
       = [] (auto addr) constexpr { return addr >> 6; };
 
   auto init_address_reuse_distance = [&] (auto param) {
-    auto [secret_addr, transmit_addr, access_ip, transmit_ip, direct] = param;
-    reuse_distance.emplace (std::make_pair (
-        block_address_of (secret_addr),
-        reuse_distance_sampler{ reuse_distance_clk, access_ip }));
+    auto &&[exposed_secret, transmit_addr, transmit_ip] = param;
+    for (auto &sec : exposed_secret)
+      {
+        auto [secret_addr, access_ip, propagation_level] = sec;
+        reuse_distance.emplace (std::make_pair (
+            block_address_of (secret_addr),
+            reuse_distance_sampler{ reuse_distance_clk, access_ip }));
+      }
   };
 
   pp.add_secret_exposed_hook (init_address_reuse_distance);
