@@ -61,7 +61,7 @@ propagator::reg_to_reg (const instr &ins)
     {
       for (auto t : reg_taint_[src_reg])
         {
-          if (!--taint_age_table_[src_reg][t])
+          if (!taint_age_table_[src_reg][t]--)
             {
               reg_taint_[src_reg].remove (t);
             }
@@ -103,8 +103,8 @@ propagator::mem_to_reg (const instr &ins)
   for_each (ins.dst_reg, [=, this] (auto reg) {
     reg_taint_[reg] = taint_set{};
     reg_taint_[reg].add (t);
-    taint_age_table_[reg][t] = 16; /* magic: taint fades after 16 reg to reg
-                                      propagation */
+    taint_age_table_[reg][t] = 8; /* magic: taint fades after 8 reg to reg
+                                     propagation */
   });
 
   /* Reset propagation depth */
