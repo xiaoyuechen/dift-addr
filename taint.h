@@ -30,7 +30,7 @@ namespace clueless
 class taint
 {
 public:
-  constexpr static size_t N = 1024;
+  constexpr static size_t N = 8192;
 
   taint () = default;
 
