@@ -101,7 +101,7 @@ main (int argc, char *argv[])
   static auto pp = propagator{};
 
   auto level_leaked = std::array<std::unordered_set<unsigned long long>, 4>{};
-  auto num_taint = std::array<std::unordered_set<unsigned long long>, 4>{};
+  auto num_taint = std::array<std::unordered_set<unsigned long long>, 8>{};
   auto all = std::unordered_set<unsigned long long>{};
 
   pp.add_secret_exposed_hook ([&] (auto param) {
@@ -117,7 +117,7 @@ main (int argc, char *argv[])
                         ? level_leaked[propagation_level]
                         : *level_leaked.rbegin ();
 
-    auto &num_taint_set = exposed_secret.size () < num_taint.size () - 1
+    auto &num_taint_set = exposed_secret.size () < num_taint.size ()
                               ? num_taint[exposed_secret.size () - 1]
                               : *num_taint.rbegin ();
     num_taint_set.insert (transmit_addr);
@@ -135,8 +135,9 @@ main (int argc, char *argv[])
       }
   });
 
-  auto print_header
-      = [] { printf ("ins lvl0 lvl1 lvl2 lvl3+ t1 t2 t3 t4+ gtt all\n"); };
+  auto print_header = [] {
+    printf ("ins lvl0 lvl1 lvl2 lvl3+ t1 t2 t3 t4 t5 t6 t7 t8+ gtt all\n");
+  };
   auto print_result = [&] (auto i) {
     auto global_taint_tracking = std::unordered_set<unsigned long long>{};
     using namespace std::ranges;

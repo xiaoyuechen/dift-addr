@@ -88,7 +88,10 @@ propagator::mem_to_reg (const instr &ins)
 
   /* Allocate and add new taint to all destination registers' taint sets */
   auto t = alloc_taint ();
-  for_each (ins.dst_reg, [=, this] (auto reg) { reg_taint_[reg].add (t); });
+  for_each (ins.dst_reg, [=, this] (auto reg) {
+    reg_taint_[reg] = taint_set{};
+    reg_taint_[reg].add (t);
+  });
 
   /* Reset propagation depth */
   for_each (ins.dst_reg, [=, this] (auto reg) {
@@ -121,15 +124,19 @@ propagator::handle_mem_taint (const instr &ins)
       for (auto t : reg_taint_[reg])
         {
           exposed_secret.emplace_back (secret_exposed_hook_param::secret{
-              taint_address_[t], taint_ip_[t], propagation_level_[reg][t] });
+              .secret_address = taint_address_[t],
+              .access_ip = taint_ip_[t],
+              .propagation_level = propagation_level_[reg][t] });
         }
     }
 
   if (!exposed_secret.size ())
     return;
 
-  secret_exposed_hook_.run (secret_exposed_hook_param{
-      std::move (exposed_secret), ins.address, ins.ip });
+  secret_exposed_hook_.run (
+      secret_exposed_hook_param{ .exposed_secret = std::move (exposed_secret),
+                                 .transmit_address = ins.address,
+                                 .transmit_ip = ins.ip });
 }
 
 taint_set

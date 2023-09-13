@@ -28,7 +28,9 @@ namespace clueless
 taint
 fifo_taint_allocator::alloc ()
 {
-  return taint{ (t_ + 1) % taint::N };
+  auto t0 = t_;
+  t_ = taint{ (t_ + 1) % taint::N };
+  return t0;
 }
 
 }

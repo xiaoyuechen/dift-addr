@@ -57,9 +57,10 @@ public:
   void
   remove_all (taint t)
   {
-    using namespace std::ranges;
-    transform (table_, begin (table_),
-               [=] (auto ts) { return ts.remove (t); });
+    for (auto &ts : table_)
+      {
+        ts.remove (t);
+      }
   }
 
   size_t
