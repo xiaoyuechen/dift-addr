@@ -98,6 +98,9 @@ private:
   using propagation_level_table
       = std::array<std::array<size_t, taint::N>, reg_taint_table::NREG>;
   propagation_level_table propagation_level_ = {};
+  using taint_age_table
+      = std::array<std::array<size_t, taint::N>, reg_taint_table::NREG>;
+  taint_age_table taint_age_table_ = {};
 };
 
 }

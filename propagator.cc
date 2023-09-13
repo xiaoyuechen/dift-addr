@@ -57,6 +57,17 @@ propagator::reg_to_reg (const instr &ins)
   if (!(ins.src_reg.size () && ins.dst_reg.size ()))
     return;
 
+  for (auto src_reg : ins.src_reg)
+    {
+      for (auto t : reg_taint_[src_reg])
+        {
+          if (!--taint_age_table_[src_reg][t])
+            {
+              reg_taint_[src_reg].remove (t);
+            }
+        }
+    }
+
   /* Union all source registers' taint sets */
   auto ts = union_reg_taint_sets (ins.src_reg);
 
@@ -68,6 +79,7 @@ propagator::reg_to_reg (const instr &ins)
             {
               propagation_level_[dst_reg][t]
                   = propagation_level_[src_reg][t] + 1;
+              taint_age_table_[dst_reg][t] = taint_age_table_[src_reg][t];
             }
         }
     }
@@ -91,6 +103,8 @@ propagator::mem_to_reg (const instr &ins)
   for_each (ins.dst_reg, [=, this] (auto reg) {
     reg_taint_[reg] = taint_set{};
     reg_taint_[reg].add (t);
+    taint_age_table_[reg][t] = 16; /* magic: taint fades after 16 reg to reg
+                                      propagation */
   });
 
   /* Reset propagation depth */
