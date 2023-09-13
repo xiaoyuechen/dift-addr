@@ -19,6 +19,7 @@
           gdb
           haskell-language-server
           (haskellPackages.ghcWithPackages (pkgs: [ pkgs.regex-tdfa ]))
+          (python3.withPackages (pkgs: with pkgs; [ pandas matplotlib python-lsp-server ]))
         ];
       };
     };
