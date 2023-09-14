@@ -120,7 +120,6 @@ main (int argc, char *argv[])
     auto &num_taint_set = exposed_secret.size () < num_taint.size ()
                               ? num_taint[exposed_secret.size () - 1]
                               : *num_taint.rbegin ();
-    num_taint_set.insert (transmit_addr);
 
     for (auto &sec : exposed_secret)
       {
@@ -132,6 +131,13 @@ main (int argc, char *argv[])
             continue;
           }
         lvl_set.insert (sec.secret_address);
+      }
+
+    if (find_if (num_taint,
+                 [=] (auto &set) { return set.contains (transmit_addr); })
+        == end (num_taint))
+      {
+        num_taint_set.insert (transmit_addr);
       }
   });
 
