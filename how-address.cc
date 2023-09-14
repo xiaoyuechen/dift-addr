@@ -109,14 +109,6 @@ main (int argc, char *argv[])
 
     using namespace std::ranges;
 
-    auto propagation_level = min (exposed_secret, {},
-                                  &propagator::secret_exposed_hook_param::
-                                      secret::propagation_level)
-                                 .propagation_level;
-    auto &lvl_set = propagation_level < level_leaked.size () - 1
-                        ? level_leaked[propagation_level]
-                        : *level_leaked.rbegin ();
-
     auto &num_taint_set = exposed_secret.size () < num_taint.size ()
                               ? num_taint[exposed_secret.size () - 1]
                               : *num_taint.rbegin ();
@@ -130,6 +122,11 @@ main (int argc, char *argv[])
           {
             continue;
           }
+
+        auto &lvl_set = sec.propagation_level < level_leaked.size () - 1
+                            ? level_leaked[sec.propagation_level]
+                            : *level_leaked.rbegin ();
+
         lvl_set.insert (sec.secret_address);
       }
 
