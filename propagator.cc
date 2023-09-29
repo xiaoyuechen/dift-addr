@@ -103,7 +103,7 @@ propagator::mem_to_reg (const instr &ins)
   for_each (ins.dst_reg, [=, this] (auto reg) {
     reg_taint_[reg] = taint_set{};
     reg_taint_[reg].add (t);
-    taint_age_table_[reg][t] = 8; /* magic: taint fades after 8 reg to reg
+    taint_age_table_[reg][t] = 4096; /* magic: taint fades after 8 reg to reg
                                      propagation */
   });
 
