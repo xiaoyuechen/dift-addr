@@ -1,0 +1,46 @@
+#+title: Clueless
+#+subtitle: A tool characterising how addresses are made
+
+* Clueless as binary tools
+
+Clueless comes with 2 example binary tools --- ~how-address~ and
+~reuse-distance~. Run ~make~ to build them.
+
+** how-address
+
+This tools tells you how your programs' memory addresses are made.
+
+Usage ~/.how-address --help~
+#+begin_src
+Usage: how-address [OPTION...] TRACE
+How memory addresses are made
+
+  -b, --heartbeat=N          Print heartbeat every N instructions
+  -s, --simulate=N           Simulate N instructions
+  -w, --warmup=N             Skip the first N instructions
+  -?, --help                 Give this help list
+      --usage                Give a short usage message
+  -V, --version              Print program version
+#+end_src
+
+~./how-address trace.champsimtrace.xz~ outputs a space separated table
+that can be piped into a csv file. A table looks like this:
+
+|      ins |   lvl0 | lvl1 | lvl2 | lvl3+ |    t1 |    t2 |   t3 | t4 | t5 | t6 | t7 | t8+ |    gtt |    all |
+|----------+--------+------+------+-------+-------+-------+------+----+----+----+----+-----+--------+--------|
+| 10000000 | 187632 |  758 |   41 |    13 | 50918 | 15617 | 4613 | 86 | 34 | 14 | 15 | 835 | 188444 | 379511 |
+
+What do different columns mean?
+
+- ins :: #instructions simulated.
+- lvl0 :: #directly leaked addresses.
+- lvl1..lvl3+ :: #indirectly leaked addresses. The number after lvl
+  means the indirection level, i.e., the number of arithmetic
+  instructions used to transform the value into the address.
+- t1..t8+ :: #loads used to combine into the address.
+- gtt :: #values turning into addresses.
+- all :: #all addresses.
+
+** reuse-distance
+
+This program tells you the reuse-distance of critical loads.
